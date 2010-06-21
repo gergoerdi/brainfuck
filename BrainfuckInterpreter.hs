@@ -1,4 +1,3 @@
-{-# LANGUAGE DoRec #-}
 module Main where
 
 import Language.BrainFuck.Syntax

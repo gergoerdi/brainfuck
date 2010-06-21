@@ -4,20 +4,22 @@ module Language.BrainFuck.Parser  where
 import Language.BrainFuck.Syntax
     
 import Text.ParserCombinators.Parsec
+
+symbol c = spaces >> char c >> spaces    
     
-program = spaces >> stmt `sepEndBy` spaces
+program = many stmt
           
-stmt = incptr <|> decptr <|> incdata <|> decdata <|> output <|> input <|> while
+stmt = incPtr <|> decPtr <|> incData <|> decData <|> output <|> input <|> while
     where
-      incptr  = char '>' >> return IncPtr
-      decptr  = char '<' >> return DecPtr
-      incdata = char '+' >> return IncData
-      decdata = char '-' >> return DecData
-      output  = char '.' >> return Output
-      input   = char ',' >> return Input
-      while   = do char '['
-                   stmts <- try program
-                   char ']'
+      incPtr  = symbol '>' >> return IncPtr
+      decPtr  = symbol '<' >> return DecPtr
+      incData = symbol '+' >> return IncData
+      decData = symbol '-' >> return DecData
+      output  = symbol '.' >> return Output
+      input   = symbol ',' >> return Input
+      while   = do symbol '['
+                   stmts <- program
+                   symbol ']'
                    return $ While stmts
 
 parseBrainFuck = parseFromFile program'

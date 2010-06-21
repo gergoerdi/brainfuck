@@ -10,21 +10,24 @@ import Control.Monad.State
 type Cell = Word8
 data Memory = M [Cell] [Cell]            
 
-zipL (M (l:ls) rs)     = M ls     (l:rs)
-zipR (M ls     (r:rs)) = M (r:ls) rs
+memory = M [] (cycle [0])            
+            
+moveL (M (l:ls) rs)     = M ls     (l:rs)
+moveR (M ls     (r:rs)) = M (r:ls) rs
 
-affect f (M ls (r:rs)) = M ls ((f r):rs)
+xform f (M ls (r:rs)) = M ls ((f r):rs)
+write = xform . const
 inspect (M ls (r:rs)) = r
                          
 eval = mapM_ evalStep
 
 evalStep :: Stmt -> StateT Memory IO ()
-evalStep IncPtr = modify zipR
-evalStep DecPtr = modify zipL
-evalStep IncData = modify (affect succ')
+evalStep IncPtr = modify moveR
+evalStep DecPtr = modify moveL
+evalStep IncData = modify (xform succ')
     where succ' x | x == maxBound = minBound
                   | otherwise = succ x
-evalStep DecData = modify (affect pred')
+evalStep DecData = modify (xform pred')
     where pred' x | x == minBound = maxBound
                   | otherwise = pred x
 evalStep Output = do v <- gets inspect
@@ -32,10 +35,10 @@ evalStep Output = do v <- gets inspect
                      lift $ putChar c
 evalStep Input = do c <- lift readLn
                     let v = fromIntegral $ ord c
-                    modify $ affect $ const v
+                    modify $ write v
 evalStep (While p) = do r <- gets inspect
                         case r of
                           0 -> return ()
                           _ -> eval p >> evalStep (While p)                                                         
 
-run p = evalStateT (eval p) (M [] (cycle [0]))      
+run p = evalStateT (eval p) memory
