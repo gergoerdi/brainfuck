@@ -1,0 +1,7 @@
+*.o
+*.hi
+
+samples/*.asm
+
+BrainfuckCompiler
+BrainfuckInterpreter
