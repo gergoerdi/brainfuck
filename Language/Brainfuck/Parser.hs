@@ -1,7 +1,6 @@
-module Language.BrainFuck.Parser  where
--- module Language.BrainFuck.Parser (parseBrainFuck) where
+module Language.Brainfuck.Parser (parseBrainFuck) where
 
-import Language.BrainFuck.Syntax
+import Language.Brainfuck.Syntax
     
 import Text.ParserCombinators.Parsec
 

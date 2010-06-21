@@ -1,9 +1,9 @@
 {-# LANGUAGE DoRec, GeneralizedNewtypeDeriving #-}
 module Main where
 
-import Language.BrainFuck.Syntax
-import Language.BrainFuck.Parser
-import Language.BrainFuck.Interpreter
+import Language.Brainfuck.Syntax
+import Language.Brainfuck.Parser
+import Language.Brainfuck.Interpreter
 import Language.Ia32.Syntax
     
 import Control.Monad.RWS

@@ -1,6 +1,6 @@
-module Language.BrainFuck.Interpreter (run) where
+module Language.Brainfuck.Interpreter (run) where
 
-import Language.BrainFuck.Syntax
+import Language.Brainfuck.Syntax
     
 import Control.Monad (foldM)
 import Data.Char (ord, chr)

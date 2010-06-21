@@ -1,8 +1,8 @@
 module Main where
 
-import Language.BrainFuck.Syntax
-import Language.BrainFuck.Parser
-import Language.BrainFuck.Interpreter
+import Language.Brainfuck.Syntax
+import Language.Brainfuck.Parser
+import Language.Brainfuck.Interpreter
     
 import System.Environment (getArgs)
 

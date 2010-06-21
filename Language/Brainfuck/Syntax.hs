@@ -1,4 +1,4 @@
-module Language.BrainFuck.Syntax where
+module Language.Brainfuck.Syntax where
 
 data Stmt = IncPtr
           | DecPtr
