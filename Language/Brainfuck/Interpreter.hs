@@ -2,7 +2,6 @@ module Language.Brainfuck.Interpreter (run) where
 
 import Language.Brainfuck.Syntax
     
-import Control.Monad (foldM)
 import Data.Char (ord, chr)
 import Data.Word (Word8)
 import Control.Monad.State
