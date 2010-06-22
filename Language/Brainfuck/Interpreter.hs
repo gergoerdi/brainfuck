@@ -4,40 +4,30 @@ import Language.Brainfuck.Syntax
     
 import Data.Char (ord, chr)
 import Data.Word (Word8)
-import Control.Monad.State
+import Control.Monad (foldM)
     
 type Cell = Word8
 data Memory = M [Cell] [Cell]            
 
 memory = M [] (cycle [0])            
             
-moveL (M (l:ls) rs)     = M ls     (l:rs)
-moveR (M ls     (r:rs)) = M (r:ls) rs
+pred' x | x == minBound = maxBound
+        | otherwise     = pred x
 
-xform f (M ls (r:rs)) = M ls ((f r):rs)
-write = xform . const
-inspect (M ls (r:rs)) = r
-                         
-eval = mapM_ evalStep
-
-evalStep :: Stmt -> StateT Memory IO ()
-evalStep IncPtr = modify moveR
-evalStep DecPtr = modify moveL
-evalStep IncData = modify (xform succ')
-    where succ' x | x == maxBound = minBound
-                  | otherwise = succ x
-evalStep DecData = modify (xform pred')
-    where pred' x | x == minBound = maxBound
-                  | otherwise = pred x
-evalStep Output = do v <- gets inspect
-                     let c = chr $ fromIntegral v
-                     lift $ putChar c
-evalStep Input = do c <- lift readLn
-                    let v = fromIntegral $ ord c
-                    modify $ write v
-evalStep (While p) = do r <- gets inspect
-                        case r of
-                          0 -> return ()
-                          _ -> eval p >> evalStep (While p)                                                         
-
-run p = evalStateT (eval p) memory
+succ' x | x == maxBound = minBound
+        | otherwise     = succ x
+                      
+evalStep :: Memory -> Stmt -> IO Memory
+evalStep   (M ls     (x:rs)) IncPtr = return $ M (x:ls) rs
+evalStep   (M (x:ls) rs)     DecPtr = return $ M ls (x:rs)
+evalStep   (M ls     (x:rs)) IncData = return $ M ls (succ' x:rs)
+evalStep   (M ls     (x:rs)) DecData = return $ M ls (pred' x:rs)
+evalStep m@(M ls     (x:rs)) Output = putChar (chr $ fromIntegral x) >> return m
+evalStep   (M ls     (_:rs)) Input = do c <- readLn
+                                        let x' = fromIntegral $ ord c
+                                        return $ M ls (x':rs)
+evalStep m@(M ls     (x:rs)) (While p) | x == 0    = return m
+                                       | otherwise = do m' <- eval m p
+                                                        evalStep m' (While p)
+eval = foldM evalStep
+run p = eval memory p
