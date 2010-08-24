@@ -34,11 +34,3 @@ resolveLabels :: SourceProgram -> [(LineNum, Stmt RegName LineNum)]
 resolveLabels prog = zip [0..] prog'
     where labels = collectLabels prog
           (_, _, prog') = runRWS (mapM resolveDirective prog) labels ()
-
-p = [
- Stmt $ Inc "x",
- Label "foo",
- Label "bar",
- Stmt $ Inc "y",
- Stmt $ Dec "x",
- Stmt $ Jz "x" "foo"]

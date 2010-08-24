@@ -1,4 +1,4 @@
-module Language.Brainfuck.Pretty () where
+module Language.Brainfuck.Pretty (pPrintProgram) where
 
 import Language.Brainfuck.Syntax
 import Text.PrettyPrint

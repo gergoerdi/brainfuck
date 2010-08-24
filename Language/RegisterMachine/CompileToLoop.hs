@@ -89,3 +89,11 @@ compile (R.Jz r l) = do
                [L.Dec NZ,
                 L.Inc pcNonZero]]
                             
+
+p = [
+ R.Stmt $ R.Inc "x",
+ R.Label "foo",
+ R.Label "bar",
+ R.Stmt $ R.Inc "y",
+ R.Stmt $ R.Dec "x",
+ R.Stmt $ R.Jz "x" "foo"]
