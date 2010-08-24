@@ -1,17 +1,19 @@
-module Language.Loop.CompileToBrainfuck (compile) where
+module Language.Loop.CompileToBrainfuck (toBrainfuck) where
 
 import qualified Language.Loop.Syntax as L
 import qualified Language.Brainfuck.Syntax as B
 
-compile :: [L.Stmt Int] -> [B.Stmt]
-compile = optimize . compileStmts
+toBrainfuck :: [L.Stmt Int] -> [B.Stmt]
+toBrainfuck = optimize . compiles
 
-compileStmts = concatMap compileStmt
+compiles = concatMap compile
 
-compileStmt (L.Inc k) = at k [B.IncData] 
-compileStmt (L.Dec k) = at k [B.DecData]
-compileStmt (L.Clr k) = at k [B.While [B.DecData]]
-compileStmt (L.While k p) = at k [B.While $ goto (-k) ++ compileStmts p ++ goto k]
+compile (L.Inc k)     = at k [B.IncData] 
+compile (L.Dec k)     = at k [B.DecData]
+compile (L.Clr k)     = at k [B.While [B.DecData]]
+compile (L.Output k)  = at k [B.Output]
+compile (L.Input k)   = at k [B.Input]
+compile (L.While k p) = at k [B.While $ goto (-k) ++ compiles p ++ goto k]
 
 goto k | k >= 0     = replicate k B.IncPtr
        | otherwise = replicate (-k) B.DecPtr

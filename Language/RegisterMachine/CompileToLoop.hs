@@ -1,5 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-module Language.RegisterMachine.CompileToLoop where
+module Language.RegisterMachine.CompileToLoop (toLoop) where
 
 import Prelude hiding (mapM)
 import Data.Traversable (mapM)        
@@ -19,9 +19,9 @@ data Var reg = Reg reg
              | NZ
              deriving Show
 
--- compileToLoop :: R.SourceProgram -> [L.Stmt Integer]
-compileToLoop prog = let (_, _, prog'') = runRWS compileProg undefined ()
-                     in layout prog''
+toLoop :: R.SourceProgram -> [L.Stmt Int]
+toLoop prog = let (_, _, prog'') = runRWS compileProg undefined ()
+              in layout prog''
     where prog' = resolveLabels prog
           len = length prog'
           last = Pc len
@@ -56,17 +56,18 @@ compileStmt l s = do
       where toCase body = [L.While pc $ (L.Dec pc):body]
             pc = Pc l
 
-compile (R.Inc r) = do emit [L.Inc (Reg r)]
-                       next
-
-compile (R.Dec r) = do emit [L.Dec (Reg r)]
-                       next
-
-compile (R.Clr r) = do emit [L.Clr (Reg r)]
-                       next
-
-compile (R.Jmp l) = emit [L.Inc (Pc l)]
-compile (R.Jz r l) = do
+compile (R.Inc r)    = do emit [L.Inc (Reg r)]
+                          next
+compile (R.Dec r)    = do emit [L.Dec (Reg r)]
+                          next
+compile (R.Clr r)    = do emit [L.Clr (Reg r)]
+                          next
+compile (R.Output r) = do emit [L.Output (Reg r)]
+                          next
+compile (R.Input r)  = do emit [L.Input (Reg r)]
+                          next
+compile (R.Jmp l)    = emit [L.Inc (Pc l)]
+compile (R.Jz r l)   = do
   pcNonZero <- liftM Pc nextLabel
   let pcZero = Pc l              
   emit $ [L.Inc Z,
@@ -88,12 +89,3 @@ compile (R.Jz r l) = do
           L.While NZ
                [L.Dec NZ,
                 L.Inc pcNonZero]]
-                            
-
-p = [
- R.Stmt $ R.Inc "x",
- R.Label "foo",
- R.Label "bar",
- R.Stmt $ R.Inc "y",
- R.Stmt $ R.Dec "x",
- R.Stmt $ R.Jz "x" "foo"]
