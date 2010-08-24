@@ -4,7 +4,8 @@ module Main where
 import Language.Brainfuck.Syntax
 import Language.Brainfuck.Parser
 import Language.Brainfuck.Interpreter
-import Language.Ia32.Syntax
+import Language.IA32.Syntax
+import Language.IA32.Pretty
     
 import Control.Monad.RWS
 import Text.PrettyPrint.HughesPJClass (pPrint)

@@ -32,13 +32,6 @@ compileToLoop prog = let (_, _, prog'') = runRWS compileProg undefined ()
           layout prog = let (prog', _, ()) = runRWS layoutProg len Map.empty
                         in prog'
               where layoutProg = mapM (mapM layoutVar) prog
-                                      
-          -- -- layout = id
-          -- layout B = 0
-          -- layout Z = 1
-          -- layout NZ = 2
-          -- layout (Pc n) = 3 + n
-          -- layout (Reg r) = 3 + len + r
 
 layoutVar B = return 0
 layoutVar Z = return 1
@@ -83,16 +76,16 @@ compile (R.Jz r l) = do
           L.While (Reg r)
                [L.Dec (Reg r),
                 L.Inc B,
-                L.Clr NZ],
+                L.Clr Z],
           L.While B
                [L.Dec B,
                 L.Inc (Reg r)],
                            
-          L.While NZ
-               [L.Dec NZ,
-                L.Dec Z,
-                L.Inc pcNonZero],
           L.While Z
                [L.Dec Z,
-                L.Inc pcZero]]
+                L.Dec NZ,
+                L.Inc pcZero],
+          L.While NZ
+               [L.Dec NZ,
+                L.Inc pcNonZero]]
                             
