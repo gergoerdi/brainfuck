@@ -1,17 +1,20 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-module Language.RegisterMachine.CompileToLoop (toLoop) where
+module Language.RegisterMachine.CompileToLoop where
 
 import Prelude hiding (mapM)
 import Data.Traversable (mapM)        
+import Control.Monad.State hiding (mapM)
 import Control.Monad.RWS hiding (mapM)
-    
+import Control.Monad.Reader hiding (mapM)
+import Data.Maybe (fromJust)
+import Data.List (nubBy)    
+
 import qualified Language.RegisterMachine.Syntax as R
-import Language.RegisterMachine.ResolveLabels
+import Language.RegisterMachine.CompileToLoop.Partitions
+import Language.RegisterMachine.CompileToLoop.Labeller
 import qualified Language.Loop.Syntax as L
 
-import Data.Map (Map)
-import qualified Data.Map as Map
-    
+
 data Var reg = Reg reg
              | Pc Int
              | B
@@ -22,14 +25,14 @@ data Var reg = Reg reg
 toLoop :: R.SourceProgram -> [L.Stmt Int]
 toLoop prog = let (_, _, prog'') = runRWS compileProg undefined ()
               in layout prog''
-    where prog' = resolveLabels prog
-          len = length prog'
+    where parts = partitions prog
+          len = length parts
           last = Pc len
 
-          compileProg = censor toMainLoop $ mapM (uncurry compileStmt) prog'
+          compileProg = censor toMainLoop $ mapM (uncurry compileStmts) parts
               where toMainLoop body = [L.Dec last, L.While last body]
 
-          layout prog = let (prog', _, ()) = runRWS layoutProg len Map.empty
+          layout prog = let (prog', _) = runLabeller layoutProg [4 + len..]
                         in prog'
               where layoutProg = mapM (mapM layoutVar) prog
 
@@ -37,22 +40,15 @@ layoutVar B = return 0
 layoutVar Z = return 1
 layoutVar NZ = return 2
 layoutVar (Pc n) = return $ 3 + n
-layoutVar (Reg r) = do lookup <- gets $ Map.lookup r
-                       case lookup of
-                         Just k -> return k
-                         Nothing -> do len <- ask
-                                       count <- gets Map.size
-                                       let k = 4 + len + count
-                                       modify $ Map.insert r k
-                                       return k
+layoutVar (Reg r) = ensure r
                                               
 emit = tell
 nextLabel = asks succ
 next = do pc <- liftM Pc nextLabel
           emit $ [L.Inc pc]
 
-compileStmt l s = do
-  local (const l) $ censor toCase $ compile s
+compileStmts l ss = do
+  local (const l) $ censor toCase $ mapM compile ss
       where toCase body = [L.While pc $ (L.Dec pc):body]
             pc = Pc l
 
@@ -89,3 +85,14 @@ compile (R.Jz r l)   = do
           L.While NZ
                [L.Dec NZ,
                 L.Inc pcNonZero]]
+        
+p = [
+ R.Stmt $ R.Inc "x",
+ R.Label "foo",
+ R.Label "bar",
+ R.Stmt $ R.Inc "y",
+ R.Stmt $ R.Dec "x",
+ R.Stmt $ R.Jz "x" "bar",
+ R.Stmt $ R.Inc "z",
+ R.Stmt $ R.Jmp "foo",
+ R.Stmt $ R.Inc "z"]

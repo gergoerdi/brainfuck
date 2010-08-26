@@ -9,17 +9,11 @@ data Stmt reg label = Inc reg
                     | Jz reg label
           deriving Show
 
-type RegName = String
+type Reg = String
 type Label = String
-    
 
-type Reg = Int   
-type LineNum = Int
-
-data SourceDirective = Stmt (Stmt RegName Label)
-                     | Label Label
-                     deriving Show
-type SourceProgram = [SourceDirective]
-
-type FlatProgram reg = [(Int, Stmt reg LineNum)]
+data Directive reg label = Stmt (Stmt reg label)
+                         | Label label
+                         deriving Show
+type SourceProgram = [Directive Reg Label]
     
