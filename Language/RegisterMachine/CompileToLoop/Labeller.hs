@@ -19,9 +19,10 @@ ensure l = Labeller $ do
   existing <- gets $ Map.lookup l . mapping
   case existing of
     Just v  -> return v
-    Nothing -> do S{ supply = v:vs, mapping = mapping } <- get
-                  put S{ supply = vs, mapping = Map.insert l v mapping}
+    Nothing -> do v <- generate'
+                  modify $ \s -> s{ mapping = Map.insert l v $ mapping s}
                   return v
+  where generate' = unLabeller generate
       
 generate :: Ord l => Labeller l v v               
 generate = Labeller $ do
