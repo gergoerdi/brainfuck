@@ -25,7 +25,7 @@ macroDef = do
   return $ Macro m formals ds
 
 stmt :: Parser PrimitiveStmt
-stmt = inc <|> dec <|> clr <|> jmp <|> jz <?> "Statement"
+stmt = inc <|> dec <|> clr <|> input <|> output <|> jmp <|> jz <?> "Statement"
   where inc = do
           keyword "inc"
           r <- register
@@ -40,6 +40,16 @@ stmt = inc <|> dec <|> clr <|> jmp <|> jz <?> "Statement"
           keyword "clr"
           r <- register
           return $ Clr r
+          
+        input = do
+          keyword "in"
+          r <- register
+          return $ Input r
+          
+        output = do
+          keyword "out"
+          r <- register
+          return $ Output r
           
         jmp = do
           try $ keyword "jmp"
