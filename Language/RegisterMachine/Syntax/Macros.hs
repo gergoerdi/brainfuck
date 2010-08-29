@@ -2,18 +2,36 @@ module Language.RegisterMachine.Syntax.Macros where
 
 import Language.RegisterMachine.Syntax
 
-type MacroName = String
-data MStmt reg label = RegStmt (Stmt reg label)
-                     | MacroCall MacroName [reg]
-                     deriving Show
+type Symbol = String
 
-data MacroDirective reg label = MStmt (MStmt reg label)
-                              | MLabel label
-                              deriving Show
+type RegisterSym = Symbol
 
-data MacroLabel label = GenSymLabel label
-                      | GlobalLabel label
-                      deriving Show
+data LabelSym = Global Symbol
+              | GenSym Symbol
+              deriving Show
+                       
+data Arg = Symbol Symbol
+         | Int Int
+         deriving Show
 
-data Macro reg label = Macro MacroName [reg] [MacroDirective reg (MacroLabel label)] deriving Show
-data MacroProgram = MacroProgram [Macro Reg Label] [MacroDirective Reg (MacroLabel Label)] deriving Show
+type PrimitiveStmt = Stmt RegisterSym LabelSym
+
+data MacroStmt = PrimitiveStmt PrimitiveStmt
+               | Add RegisterSym Arg
+               | MacroCall Symbol [Arg]
+               deriving Show
+                 
+data MacroDirective = MacroStmt MacroStmt                 
+                    | MacroLabel LabelSym
+                    deriving Show
+                 
+data Macro = Macro Symbol [Symbol] [MacroDirective] 
+           deriving Show
+                    
+data MacroProgram = MacroProgram [Macro] [MacroDirective]
+                  deriving Show
+
+processMacros :: MacroProgram -> SourceProgram
+processMacros = undefined
+
+

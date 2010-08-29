@@ -3,8 +3,103 @@ module Language.RegisterMachine.Parser (parseRegisterMachine) where
 import Language.RegisterMachine.Syntax
 import Language.RegisterMachine.Syntax.Macros
 
-import Control.Monad    
+import Control.Monad (liftM, guard)
 import Text.ParserCombinators.Parsec hiding (label)
+
+parseRegisterMachine = parseFromFile program
+
+program = do
+  optional newLine
+  ms <- many macroDef
+  ds <- directives
+  eof
+  return $ MacroProgram ms ds
+
+macroDef = do
+  keyword "def"
+  m <- symbol
+  formals <- many symbol
+  newLine
+  ds <- directives
+  keyword "enddef" >> newLine
+  return $ Macro m formals ds
+
+stmt :: Parser PrimitiveStmt
+stmt = inc <|> dec <|> clr <|> jmp <|> jz <?> "Statement"
+  where inc = do
+          keyword "inc"
+          r <- register
+          return $ Inc r
+          
+        dec = do
+          keyword "dec"
+          r <- register
+          return $ Dec r
+          
+        clr = do
+          keyword "clr"
+          r <- register
+          return $ Clr r
+          
+        jmp = do
+          try $ keyword "jmp"
+          l <- label
+          return $ Jmp l
+                      
+        jz = do
+          keyword "jz"
+          r <- register
+          l <- label
+          return $ Jz r l
+            
+macroStmt = liftM PrimitiveStmt (try stmt) <|> add <|> macroCall
+  where add = do
+          keyword "add"
+          r <- register
+          a <- arg
+          return $ Add r a          
+          
+        macroCall = do
+          macro <- symbol
+          guard $ macro /= "enddef"
+          args <- many arg
+          return $ MacroCall macro args          
+
+directive = try label <|> liftM MacroStmt macroStmt
+  where label = do l <- labelName
+                   char ':'
+                   return $ MacroLabel l                   
+
+directives = (try directive) `sepEndBy` newLine
+
+register = symbol
+label = lexeme labelName
+
+labelName = genLabel <|> globalLabel
+  where genLabel = do
+          char '_'
+          liftM GenSym symbolName
+        globalLabel = liftM Global symbolName
+           
+symbol = lexeme symbolName
+symbolName = do
+  c <- letter
+  cs <- many $ (char '_' <|> letter <|> digit)
+  return $ c:cs
+
+keyword s = lexeme $ string s
+          
+arg = try int <|> sym
+  where int = lexeme $ do
+          s <- optionMaybe $ char '-'
+          ds <- many1 digit
+          let n = read ds :: Int
+              n' = case s of
+                Nothing -> n
+                Just _ -> -n
+          return $ Int n'
+          
+        sym = liftM Symbol symbol
 
 inlineSpace = oneOf [' ', '\t'] >> return ()
 newLine = optional commentLine >> skipMany1 (newline' <|> commentLine) >> whiteSpace
@@ -24,100 +119,3 @@ lexeme p = do
   x <- p
   whiteSpace
   return x
-
-reserved s = do
-  lexeme $ string s
-
-labelDef inMacro = do l <- label_
-                      char ':'
-                      whiteSpace <|> newLine
-                      return l  
-  where label_ | inMacro = try mlabel <|> label
-               | otherwise = label
-        
-identifier = do
-  c <- letter <|> digit
-  cs <- many $ (char '_' <|> letter <|> digit)
-  return $ c:cs
-
-register = lexeme identifier
-
-label' = identifier
-mlabel' = char '_' >> label'
-
-label = label' >>= return . GlobalLabel           
-mlabel = do mlabel' >>= return . GenSymLabel
-         
-stmt inMacro = inc <|> dec <|> clr <|> input <|> jmp <|> jz
-  where inc = do 
-          reserved "inc"
-          r <- register
-          return $ Inc r
-          
-        dec = do
-          reserved "dec"
-          r <- register
-          return $ Dec r
-          
-        clr = do
-          reserved "clr"
-          r <- register
-          return $ Clr r
-          
-        jmp = do
-          try $ reserved "jmp"
-          l <- label_
-          return $ Jmp l
-          
-        jz = do
-          reserved "jz"
-          r <- register
-          l <- label_
-          return $ Jz r l
-          
-        input = do
-          reserved "print"
-          r <- register
-          return $ Output r
-          
-        label_ | inMacro = mlabel
-               | otherwise = label
-                  
-macroName = lexeme identifier                             
-                             
-directive = try (stmt False >>= return . Stmt) <|> try (labelDef False >>= return . Label)
-mdirective = try (stmt True >>= return . MStmt . RegStmt) <|> try (labelDef True >>= return . MLabel) <|> try (mcall >>= return . MStmt) <?> "Macro directive"
-  where mcall = do macro <- macroName
-                   guard $ macro /= "endprogram" && macro /= "enddef"
-                   args <- many register
-                   return $ MacroCall macro []
-        
-macrodef = do
-  reserved "def"
-  mname <- macroName
-  formals <- many register
-  newLine
-  p <- mdirective `sepEndBy` newLine
-  reserved "enddef"
-  newLine
-  return $ Macro mname formals p
-  
-          
-program = do
-  reserved "program"
-  lexeme identifier
-  newLine
-  
-  ms <- many macrodef
-  p <- mdirective `sepEndBy` newLine
-  
-  reserved "endprogram"
-  newLine  
-  
-  return $ MacroProgram ms p
-
-parseRegisterMachine = parseFromFile program'
-    where program' = do p <- program
-                        eof
-                        return p
-                 
