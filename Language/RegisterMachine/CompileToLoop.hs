@@ -6,7 +6,6 @@ import Data.Traversable (mapM)
 import Control.Monad.State hiding (mapM)
 import Control.Monad.RWS hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
-import Data.Maybe (fromJust)
 import Data.List (nubBy)    
 
 import qualified Language.RegisterMachine.Syntax as R
@@ -53,15 +52,10 @@ compileStmts l ss = do
             pc = Pc l
 
 compile (R.Inc r)    = do emit [L.Inc (Reg r)]
-                          next
 compile (R.Dec r)    = do emit [L.Dec (Reg r)]
-                          next
 compile (R.Clr r)    = do emit [L.Clr (Reg r)]
-                          next
 compile (R.Output r) = do emit [L.Output (Reg r)]
-                          next
 compile (R.Input r)  = do emit [L.Input (Reg r)]
-                          next
 compile (R.Jmp l)    = emit [L.Inc (Pc l)]
 compile (R.Jz r l)   = do
   pcNonZero <- liftM Pc nextLabel

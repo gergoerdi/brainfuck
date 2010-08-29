@@ -87,16 +87,18 @@ instantiateArg (Symbol s) = do
 instantiateArg (Int n) = return $ Int n
 
 instantiateLabel :: LabelSym -> Inst Label
-instantiateLabel (Global l) = return l
+instantiateLabel (Global l) = instantiateSymbol l
 instantiateLabel (GenSym l) = lift $ ensure l
 
-instantiateReg :: RegisterSym -> Inst Reg
-instantiateReg r = do
-  lookup <- asks $ Map.lookup r . actuals
+instantiateSymbol sym = do
+  lookup <- asks $ Map.lookup sym . actuals
   case lookup of
-    Nothing         -> return r
-    Just (Symbol r) -> return r
-    Just (Int _)    -> error $ unwords ["argument is a number:", r]
+    Nothing           -> return sym
+    Just (Symbol sym) -> return sym
+    Just (Int _)      -> error $ unwords ["argument is a number:", sym]
+
+instantiateReg :: RegisterSym -> Inst Reg
+instantiateReg = instantiateSymbol
 
 instantiateStmt :: PrimitiveStmt -> Inst (Stmt Reg Label)
 instantiateStmt (Inc r)  = return Inc `ap` instantiateReg r

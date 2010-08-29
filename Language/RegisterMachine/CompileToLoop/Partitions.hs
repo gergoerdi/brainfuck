@@ -33,7 +33,9 @@ collectLabel (Stmt _) = putLabelFirst Nothing
 unifyLabels :: SourceProgram -> SourceProgram
 unifyLabels prog = compress False $ map unify prog
   where s' = execState (mapM_ collectLabel prog) $ LabelCollector Nothing Map.empty
-        lookup l = fromJust $ Map.lookup l $ labels s'                                        
+        lookup l = case Map.lookup l $ labels s' of
+          Nothing -> error $ unwords ["Undefined label", l]
+          Just l' -> l'
 
         unify (Label l) = Label $ lookup l
         unify (Stmt s) = Stmt $ unifyStmt s
@@ -53,19 +55,25 @@ groupLabels = groupLabels' (Nothing, [])
         groupLabels' (l, ss) ((Stmt s):xs)   = groupLabels' (l, s:ss) xs
         groupLabels' (l, ss) []              = [(l, reverse ss)]
 
-prune :: [Stmt Reg Label] -> [Stmt Reg Label]        
-prune = takeWhile (not . isJmp)
-  where isJmp (Jmp _) = True
-        isJmp _       = False
+prune :: [Stmt Reg l] -> [Stmt Reg l]
+prune = foldr untilJmp []
+  where untilJmp s acc | isJmp s   = [s]
+                       | otherwise = s:acc
+                                     
+        isJmp (Jmp _)  = True
+        isJmp (Jz _ _) = True
+        isJmp _        = False
         
 cut :: [Stmt Reg Label] -> [[Stmt Reg Label]]
-cut = groupBy (\ x y -> not (isJz y))
-  where isJz (Jz _ _) = True
-        isJz _        = False        
+cut ss = cut' [] ss
+  where cut' group (s@(Jz _ _):ss) = (reverse (s:group)):cut' [] ss
+        cut' group (s:ss)          = cut' (s:group) ss
+        cut' []    []              = []
+        cut' group []              = [reverse group]
         
 partitions :: SourceProgram -> [(Int, [Stmt Reg Int])]        
-partitions p = fst $ runLabeller (mapM resolve parts) [0..]
-  where parts = concatMap cut' $ map (fmap prune) $ groupLabels $ unifyLabels p 
+partitions p = map (fmap prune) $ map addContinue $ fst $ runLabeller (mapM resolve parts) [0..]
+  where parts = concatMap cut' $ groupLabels $ unifyLabels p 
         cut' (l, ss) = zip (l:repeat Nothing) (cut ss)
         
         resolveLabel Nothing = generate
@@ -82,6 +90,9 @@ partitions p = fst $ runLabeller (mapM resolve parts) [0..]
         resolve (l, ss) = do l' <- resolveLabel l
                              ss' <- mapM resolveStmt ss
                              return (l', ss')
+                                                       
+        addContinue :: (Int, [Stmt Reg Int]) -> (Int, [Stmt Reg Int])
+        addContinue (l, ss) = (l, ss ++ [Jmp (succ l)])
         
 p = [
  Stmt $ Inc "x",
