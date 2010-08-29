@@ -3,7 +3,6 @@ module Main where
 
 import Language.Brainfuck.Syntax
 import Language.Brainfuck.Parser
-import Language.Brainfuck.Interpreter
 import Language.IA32.Syntax
 import Language.IA32.Pretty
     
