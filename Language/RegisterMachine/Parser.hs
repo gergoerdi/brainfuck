@@ -10,6 +10,7 @@ parseRegisterMachine = parseFromFile program
 
 program = do
   optional newLine
+  optional whiteSpace
   ms <- many macroDef
   ds <- directives
   eof

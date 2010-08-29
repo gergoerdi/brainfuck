@@ -29,7 +29,7 @@ toLoop prog = let (_, _, prog'') = runRWS compileProg undefined ()
           last = Pc len
 
           compileProg = censor toMainLoop $ mapM (uncurry compileStmts) parts
-              where toMainLoop body = [L.Dec last, L.While last body]
+              where toMainLoop body = [L.Dec last, L.Inc (Pc 0), L.While last body]
 
           layout prog = let (prog', _) = runLabeller layoutProg [4 + len..]
                         in prog'

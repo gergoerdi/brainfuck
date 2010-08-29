@@ -72,25 +72,27 @@ cut ss = cut' [] ss
         cut' group []              = [reverse group]
         
 partitions :: SourceProgram -> [(Int, [Stmt Reg Int])]        
-partitions p = map (fmap prune) $ map addContinue $ fst $ runLabeller (mapM resolve parts) [0..]
+partitions p = map (fmap prune) $ map addContinue $ map (fmap (map resolveStmt)) parts'
   where parts = concatMap cut' $ groupLabels $ unifyLabels p 
         cut' (l, ss) = zip (l:repeat Nothing) (cut ss)
+        
+        (parts', labelMap) = runLabeller (mapM collectLabel parts) [0..]
+          where collectLabel (l, ss) = do l' <- resolveLabel l                
+                                          return (l', ss)
+        
+        lookup l = fromJust $ Map.lookup l labelMap
         
         resolveLabel Nothing = generate
         resolveLabel (Just l) = ensure l
         
-        resolveStmt (Inc r) = return $ Inc r
-        resolveStmt (Dec r) = return $ Dec r
-        resolveStmt (Clr r) = return $ Clr r
-        resolveStmt (Output r) = return $ Output r
-        resolveStmt (Input r) = return $ Input r
-        resolveStmt (Jmp l) = Jmp <$> ensure l
-        resolveStmt (Jz r l) = Jz r <$> ensure l
+        resolveStmt (Inc r) = Inc r
+        resolveStmt (Dec r) = Dec r
+        resolveStmt (Clr r) = Clr r
+        resolveStmt (Output r) = Output r
+        resolveStmt (Input r) = Input r
+        resolveStmt (Jmp l) = Jmp $ lookup l
+        resolveStmt (Jz r l) = Jz r $ lookup l
         
-        resolve (l, ss) = do l' <- resolveLabel l
-                             ss' <- mapM resolveStmt ss
-                             return (l', ss')
-                                                       
         addContinue :: (Int, [Stmt Reg Int]) -> (Int, [Stmt Reg Int])
         addContinue (l, ss) = (l, ss ++ [Jmp (succ l)])
         
