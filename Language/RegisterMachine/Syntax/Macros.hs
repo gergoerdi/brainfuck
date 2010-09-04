@@ -117,6 +117,7 @@ instantiate m actuals = do
     error $ unwords ["Recursive macro application:", intercalate ", " stack]
   Macro _ formals ds <- asks $ fromJust . Map.lookup m . macros
   let binds = zip formals actuals
-  local (addBinds binds) $ instantiateDirs ds
+  r <- ask
+  lift $ scope $ runReaderT (local (addBinds binds) $ instantiateDirs ds) r
   
   where addBinds binds r = r{ actuals = Map.fromList binds, stack = m:(stack r)}

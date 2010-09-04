@@ -276,11 +276,11 @@ main_loop:
 	jnzres print_result
 	
 	; test output
-	;print_n
-	;out sp
-	;print div
-	;out cr
-	;out lf
+	; print_n
+	; out sp
+	; print div
+	; out cr
+	; out lf
 
 	; check divisibility
 	; TBD res = n[1..div] | div
@@ -381,4 +381,6 @@ go_forward:
 	jmp main_loop
 print_result:
 	print_n
+        out cr
+        out lf
 ;endprogram

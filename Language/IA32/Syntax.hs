@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Language.IA32.Syntax where
 
-import Data.Word (Word8)
+import Data.Word (Word32)
     
 newtype Label = Label Integer deriving (Enum, Show)
     
@@ -13,7 +13,7 @@ data Target = Reg Reg
             deriving Show
 
 data Value = Target Target
-           | Imm Word8
+           | Imm Word32
            | Macro String
            deriving Show
                   

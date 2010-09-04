@@ -21,8 +21,8 @@ label = Compiler $ do
 tellOp :: [Op] -> Compiler ()         
 tellOp = Compiler . tell . map Op
 
-ptr = Reg ESP
-dat = Deref ESP
+(ptr, dat) = (Reg reg, Deref reg)
+  where reg = EBP
 
 compileMain program = do
   tellOp [Mov ptr (Macro "BUF")]
@@ -44,8 +44,8 @@ group = foldr f []
 
 arith 1    arg = Inc arg
 arith (-1) arg = Dec arg
-arith n    arg | n >= 0 = Add arg (Imm $ fromInteger n)
-               | otherwise = Sub arg (Imm $ fromInteger (abs n))
+arith n    arg | n > 0 = Add arg (Imm $ fromInteger n)
+               | n < 0 = Sub arg (Imm $ fromInteger (abs n))
 
 compileStep (BF.IncPtr, n) = tellOp [arith n ptr]
 compileStep (BF.DecPtr, n) = tellOp [arith (-n) ptr]
