@@ -20,13 +20,14 @@ collectLabels prog = let (_, _, labelMap) = runRWS (mapM_ collectLabel prog) () 
        
 resolve l = asks $ fromJust . Map.lookup l
 
-resolveStmt (Inc r)    = return $ Inc r
-resolveStmt (Dec r)    = return $ Dec r
-resolveStmt (Clr r)    = return $ Clr r
-resolveStmt (Output r) = return $ Output r
-resolveStmt (Input r)  = return $ Input r
-resolveStmt (Jmp l)    = Jmp <$> resolve l
-resolveStmt (Jz r l)   = Jz r <$> resolve l
+resolveStmt (Inc r)     = return $ Inc r
+resolveStmt (Dec r)     = return $ Dec r
+resolveStmt (Clr r)     = return $ Clr r
+resolveStmt (Mov r1 r2) = return $ Mov r1 r2
+resolveStmt (Output r)  = return $ Output r
+resolveStmt (Input r)   = return $ Input r
+resolveStmt (Jmp l)     = Jmp <$> resolve l
+resolveStmt (Jz r l)    = Jz r <$> resolve l
 
 resolveDirective (Stmt s) = do s' <- resolveStmt s
                                tell [s']                                    

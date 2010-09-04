@@ -1,28 +1,31 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Language.IA32.Syntax (Label(..), Reg(..), Value(..), Op(..), Directive(..), Program(..)) where
+module Language.IA32.Syntax where
 
 import Data.Word (Word8)
     
 newtype Label = Label Integer deriving (Enum, Show)
     
-data Reg = EAX | EBX | ECX | EDX | ESP
+data Reg = EAX | EBX | ECX | EDX | ESP | EBP
          deriving Show
 
-data Value = Imm Word8
-           | Reg Reg
-           | Deref Reg
+data Target = Reg Reg
+            | Deref Reg
+            deriving Show
+
+data Value = Target Target
+           | Imm Word8
            | Macro String
            deriving Show
                   
-data Op = Inc Value
-        | Dec Value
-        | Move Value Value
-        | Jump Label
+data Op = Inc Target
+        | Dec Target
+        | Add Target Value
+        | Sub Target Value
+        | Mov Target Value
+        | Jmp Label
         | Cmp Value Value
-        | JumpZero Label
+        | JmpZero Label
         | Int80
-        | Push Reg
-        | Pop Reg
         deriving Show                 
 
 data Directive = Op Op

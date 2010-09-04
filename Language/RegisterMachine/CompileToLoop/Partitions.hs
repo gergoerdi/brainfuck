@@ -88,6 +88,7 @@ partitions p = map (fmap prune) $ map addContinue $ map (fmap (map resolveStmt))
         resolveStmt (Inc r) = Inc r
         resolveStmt (Dec r) = Dec r
         resolveStmt (Clr r) = Clr r
+        resolveStmt (Mov r1 r2) = Mov r1 r2
         resolveStmt (Output r) = Output r
         resolveStmt (Input r) = Input r
         resolveStmt (Jmp l) = Jmp $ lookup l
@@ -95,14 +96,3 @@ partitions p = map (fmap prune) $ map addContinue $ map (fmap (map resolveStmt))
         
         addContinue :: (Int, [Stmt Reg Int]) -> (Int, [Stmt Reg Int])
         addContinue (l, ss) = (l, ss ++ [Jmp (succ l)])
-        
-p = [
- Stmt $ Inc "x",
- Label "foo",
- Label "bar",
- Stmt $ Inc "y",
- Stmt $ Dec "x",
- Stmt $ Jz "x" "bar",
- Stmt $ Inc "z",
- Stmt $ Jmp "foo",
- Stmt $ Inc "z"]

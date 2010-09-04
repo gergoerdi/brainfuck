@@ -1,0 +1,384 @@
+; program 9digits
+; Register layout:
+;
+;	n1-n9		the digits
+;
+;	div			the divisor to check
+;	ndiv		n[div]
+;	k
+;	nk			n[k]
+;
+;	res			result of logical operations (gt, le, not, ...)
+;
+;	tmp, 
+;	tmp1, 
+;	tmp2			temporary reg(s)
+;
+;	d1, d2
+
+; *************
+; 	Macros
+; *************
+
+; GT
+; ----------
+; checks if register a is greater than register b
+; res = a-b, or 0 if a<=b
+; clears tmp
+def gt a b
+	mov res a
+	mov gt_tmp b
+_gt_loop:
+	jz res _gt_res
+	jz gt_tmp _gt_res
+	dec res
+	dec gt_tmp
+	jmp _gt_loop
+_gt_res:
+	jz res _gt_false
+	; so gt_tmp must be 0 then, which means the result is true
+	jmp _gt_done
+_gt_false:
+	clr gt_tmp
+_gt_done:	
+enddef
+
+; GT_L
+; ----------
+; l is literal
+; destroys tmp1
+def gt_l a l
+	clr gt_l_tmp
+	add gt_l_tmp l
+        gt a gt_l_tmp
+enddef
+
+; GE
+; -------------
+; greater or equal
+; a>=b == !(b>a)
+def ge a b 
+	gt b a
+	not res
+enddef
+
+; NOT
+; ----------
+; negates the logical value in register a
+def not a
+	jz a _not_true
+	clr a
+	jmp _not_done
+_not_true:
+	inc a
+_not_done:	
+enddef
+
+; LE
+; --------------
+; less or equal
+; a<=b == b>=a
+def le a b
+	ge b a
+enddef
+
+; LT
+; --------------
+; less than
+; a<b == b>a
+def lt a b
+	gt b a
+enddef
+
+; LE_L
+; --------------
+; less or equal, literal
+; a<=l == !(a>l)
+def le_l a l
+	gt_l a l
+	not res
+enddef; 
+
+; LT_L
+; --------------
+; l is literal
+; destroys tmp1
+def lt_l a l
+	clr lt_l_tmp
+	add lt_l_tmp l
+	lt a lt_l_tmp
+enddef
+
+; GETNI
+; ----------
+; get n[i] into reg ni
+; where i is 1-based
+; clears tmp
+def getni i ni
+	mov getni_tmp i
+	dec getni_tmp
+	jz getni_tmp _getni_1
+	dec getni_tmp
+	jz getni_tmp _getni_2
+	dec getni_tmp
+	jz getni_tmp _getni_3
+	dec getni_tmp
+	jz getni_tmp _getni_4
+	dec getni_tmp
+	jz  getni_tmp _getni_5
+	dec getni_tmp
+	jz  getni_tmp _getni_6
+	dec getni_tmp
+	jz  getni_tmp _getni_7
+	dec getni_tmp
+	jz  getni_tmp _getni_8
+	dec getni_tmp
+	jz  getni_tmp _getni_9
+_getni_1:
+	mov ni n1
+	jmp _getni_done
+_getni_2:
+	mov ni n2
+	jmp _getni_done
+_getni_3:
+	mov ni n3
+	jmp _getni_done
+_getni_4:
+	mov ni n4
+	jmp _getni_done
+_getni_5:
+	mov ni n5
+	jmp _getni_done
+_getni_6:
+	mov ni n6
+	jmp _getni_done
+_getni_7:
+	mov ni n7
+	jmp _getni_done
+_getni_8:
+	mov ni n8
+	jmp _getni_done
+_getni_9:
+	mov ni n9
+_getni_done:
+enddef
+
+; SETNI
+; ----------
+; loads (sets) reg ni into n[i]
+; where i is 1-based
+; clears tmp
+def setni i ni
+	mov setni_tmp i
+	dec setni_tmp
+	jz setni_tmp _setni_1
+	dec setni_tmp
+	jz setni_tmp _setni_2
+	dec setni_tmp
+	jz setni_tmp _setni_3
+	dec setni_tmp
+	jz setni_tmp  _setni_4
+	dec setni_tmp
+	jz setni_tmp _setni_5
+	dec setni_tmp
+	jz setni_tmp _setni_6
+	dec setni_tmp
+	jz  setni_tmp _setni_7
+	dec setni_tmp
+	jz setni_tmp  _setni_8
+	dec setni_tmp
+	jz setni_tmp  _setni_9
+_setni_1:
+	mov n1 ni
+	jmp _setni_done
+_setni_2:
+	mov n2 ni
+	jmp _setni_done
+_setni_3:
+	mov n3 ni
+	jmp _setni_done
+_setni_4:
+	mov n4 ni
+	jmp _setni_done
+_setni_5:
+	mov n5 ni
+	jmp _setni_done
+_setni_6:
+	mov n6 ni
+	jmp _setni_done
+_setni_7:
+	mov n7 ni
+	jmp _setni_done
+_setni_8:
+	mov n8 ni
+	jmp _setni_done
+_setni_9:
+	mov n9 ni
+_setni_done:
+enddef
+
+; JNZRES
+; -----------
+; destroys res
+def jnzres label
+	not res
+	jz res label
+enddef
+
+; PRINT
+; ---------
+; destroys tmp
+def print reg
+	; 48 is ascii for '0'
+	mov print_tmp reg
+	add print_tmp 48
+	out print_tmp
+enddef
+
+; PRINT_N
+;---------------
+def print_n
+	print n1
+	print n2
+	print n3
+	print n4
+	print n5
+	print n6
+	print n7
+	print n8
+	print n9
+enddef
+
+
+; ****************
+;	Main program
+; ****************
+
+; Initialization
+; - assumes all registers start from zero
+	add div 2
+	add n1 1
+	add n2 2
+	add n3 3
+	add n4 4
+	add n5 5
+	add n6 6
+	add n7 7
+	add n8 8
+	add n9 9
+
+	add cr 13
+	add lf 10
+	add sp 32
+
+main_loop:
+	gt_l div 9
+	jnzres print_result
+	
+	; test output
+	;print_n
+	;out sp
+	;print div
+	;out cr
+	;out lf
+
+	; check divisibility
+	; TBD res = n[1..div] | div
+	; first make sure div>1
+	clr res
+	dec div
+	jz div div_1
+	inc div
+	; so div>1, first init
+	clr d1
+	mov d2 n1
+	clr k
+	add k 2
+	;try subtracting div from d1/d2 as many times as possible
+sub_div_1:
+	inc d1 ; ! hack to get the correct difference from gt (ge won't give that)
+	gt d1 div
+	dec d1
+	jz res sub_div_2
+	dec res
+	mov d1 res
+	jmp sub_div_1
+sub_div_2:
+	inc d2
+	gt d2 div
+	dec d2
+	jz res try_carry
+	dec res
+	mov d2 res
+	jmp sub_div_2
+try_carry: 
+	jz d1 try_shift
+	dec d1
+	clr tmp2
+	add tmp2 10
+	gt tmp2 div ; always greater
+	; add 10-div to d2
+add_carry:
+	jz res sub_div_2
+	dec res
+	inc d2
+	jmp add_carry
+try_shift:
+	le k div
+	jz res check_d2
+	mov d1 d2
+	getni k d2
+	inc k
+	jmp sub_div_1
+check_d2:
+	jz d2 go_forward
+	jmp findk
+div_1:
+	inc div
+	inc res
+got_res:
+	jnzres go_forward
+findk:
+	; find first k s.t. k, k>div, nk>ndiv, otw let k=0
+	getni div ndiv
+	mov k div 
+next_k:
+	inc k
+	gt_l k 9
+	jnzres bubble ; if k not found, then proceed to backtrack
+	; if nk>ndiv, then we have k
+	getni k nk
+	gt nk ndiv
+	jnzres got_k
+	jmp next_k
+got_k:
+	; swap n[k] n[div]	
+	setni k ndiv
+	setni div nk
+	jmp main_loop
+bubble:
+	; bubble up n[div] to n[9]
+	; we use k for the running index, starting from div
+	mov k div
+bubble_loop:
+	lt_l k 9
+	jz res bubble_finalize
+	inc k
+	getni k tmp2
+	dec k
+	setni k tmp2
+	inc k
+	jmp bubble_loop
+bubble_finalize:
+	clr k 
+	add k 9
+	setni k ndiv
+	; now backtrack
+	dec div
+	jmp findk
+go_forward:
+	inc div
+	jmp main_loop
+print_result:
+	print_n
+;endprogram

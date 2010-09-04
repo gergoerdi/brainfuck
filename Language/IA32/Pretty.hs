@@ -14,25 +14,27 @@ instance Pretty Reg where
     pPrint ECX = text "ecx"
     pPrint EDX = text "edx"
     pPrint ESP = text "esp"
+    pPrint EBP = text "ebp"
 
 instance Pretty Value where
-    pPrint (Reg r) = pPrint r
     pPrint (Imm v) = text (show v)
-    pPrint (Deref r) = text "byte" <+> brackets (pPrint r)
     pPrint (Macro m) = text m
+    pPrint (Target t) = pPrint t
 
-asm op args = text op <+> (sep $ punctuate comma $ map pPrint args)                        
-                        
+instance Pretty Target where
+    pPrint (Reg r) = pPrint r
+    pPrint (Deref r) = text "byte" <+> brackets (pPrint r)
+
 instance Pretty Op where
-    pPrint (Inc v) = asm "inc" [v]
-    pPrint (Dec v) = asm "dec" [v]
-    pPrint (Move to from) = asm "mov" [to, from]
-    pPrint (Jump l) = asm "jmp" [l]
-    pPrint (Cmp v v') = asm "cmp" [v, v']
-    pPrint (JumpZero l) = asm "jz" [l]
-    pPrint (Int80) = text "int 0x80"
-    pPrint (Push r) = asm "push" [r]
-    pPrint (Pop r) = asm "pop" [r]
+    pPrint (Inc t)       = text "inc" <+> pPrint t
+    pPrint (Dec t)       = text "dec" <+> pPrint t
+    pPrint (Add t v)     = text "add" <+> pPrint t <> comma <+> pPrint v
+    pPrint (Sub t v)     = text "sub" <+> pPrint t <> comma <+> pPrint v
+    pPrint (Mov to from) = text "mov" <+> pPrint to <> comma <+> pPrint from
+    pPrint (Jmp l)       = text "jmp" <+> pPrint l
+    pPrint (Cmp v v')    = text "cmp" <+> pPrint v <> comma <+> pPrint v'
+    pPrint (JmpZero l)   = text "jz" <+> pPrint l
+    pPrint (Int80)       = text "int 0x80"
 
 instance Pretty Program where
     pPrint prog = vcat $ intersperse (text "") $ [prelude, text "_start" <> colon, vcat $ map toDoc (getDirectives prog), postscript]

@@ -51,34 +51,41 @@ compileStmts l ss = do
       where toCase body = [L.While pc $ (L.Dec pc):body]
             pc = Pc l
 
-compile (R.Inc r)    = do emit [L.Inc (Reg r)]
-compile (R.Dec r)    = do emit [L.Dec (Reg r)]
-compile (R.Clr r)    = do emit [L.Clr (Reg r)]
-compile (R.Output r) = do emit [L.Output (Reg r)]
-compile (R.Input r)  = do emit [L.Input (Reg r)]
-compile (R.Jmp l)    = emit [L.Inc (Pc l)]
-compile (R.Jz r l)   = do
+compile (R.Inc r)     = emit [L.Inc (Reg r)]
+compile (R.Dec r)     = emit [L.Dec (Reg r)]
+compile (R.Clr r)     = emit [L.Clr (Reg r)]
+compile (R.Mov r1 r2) = emit [L.Clr (Reg r1),
+                              L.While (Reg r2) [
+                                L.Dec (Reg r2),
+                                L.Inc B],
+                              L.While B [
+                                L.Dec B,
+                                L.Inc (Reg r1),
+                                L.Inc (Reg r2)]]
+compile (R.Output r)  = emit [L.Output (Reg r)]
+compile (R.Input r)   = emit [L.Input (Reg r)]
+compile (R.Jmp l)     = emit [L.Inc (Pc l)]
+compile (R.Jz r l)    = do
   pcNonZero <- liftM Pc nextLabel
   let pcZero = Pc l              
   emit $ [L.Inc Z,
           L.Inc NZ,
                        
-           -- L.Clr B,                       
-          L.While (Reg r)
-               [L.Dec (Reg r),
-                L.Inc B,
-                L.Clr Z],
-          L.While B
-               [L.Dec B,
-                L.Inc (Reg r)],
-                           
-          L.While Z
-               [L.Dec Z,
-                L.Dec NZ,
-                L.Inc pcZero],
-          L.While NZ
-               [L.Dec NZ,
-                L.Inc pcNonZero]]
+          L.While (Reg r) [
+            L.Dec (Reg r),
+            L.Inc B,
+            L.Clr Z],
+          L.While B [
+            L.Dec B,
+            L.Inc (Reg r)],
+          
+          L.While Z [
+            L.Dec Z,
+            L.Dec NZ,
+            L.Inc pcZero],
+          L.While NZ [
+            L.Dec NZ,
+            L.Inc pcNonZero]]
         
 p = [
  R.Stmt $ R.Inc "x",

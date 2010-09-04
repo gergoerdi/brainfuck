@@ -101,13 +101,14 @@ instantiateReg :: RegisterSym -> Inst Reg
 instantiateReg = instantiateSymbol
 
 instantiateStmt :: PrimitiveStmt -> Inst (Stmt Reg Label)
-instantiateStmt (Inc r)  = return Inc `ap` instantiateReg r
-instantiateStmt (Dec r)  = return Dec `ap` instantiateReg r
-instantiateStmt (Clr r)  = return Clr `ap` instantiateReg r
-instantiateStmt (Jmp l)  = return Jmp `ap` instantiateLabel l
-instantiateStmt (Jz r l) = return Jz `ap` instantiateReg r `ap` instantiateLabel l
-instantiateStmt (Input r) = return Input `ap` instantiateReg r
-instantiateStmt (Output r) = return Output `ap` instantiateReg r
+instantiateStmt (Inc r)     = return Inc `ap` instantiateReg r
+instantiateStmt (Dec r)     = return Dec `ap` instantiateReg r
+instantiateStmt (Clr r)     = return Clr `ap` instantiateReg r
+instantiateStmt (Mov r1 r2) = return Mov `ap` instantiateReg r1 `ap` instantiateReg r2
+instantiateStmt (Jmp l)     = return Jmp `ap` instantiateLabel l
+instantiateStmt (Jz r l)    = return Jz `ap` instantiateReg r `ap` instantiateLabel l
+instantiateStmt (Input r)   = return Input `ap` instantiateReg r
+instantiateStmt (Output r)  = return Output `ap` instantiateReg r
 
 instantiate :: Symbol -> [Arg] -> Inst [Directive Reg Label]
 instantiate m actuals = do
