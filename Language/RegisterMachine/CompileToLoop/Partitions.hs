@@ -11,8 +11,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Applicative    
 
-data LabelCollector = LabelCollector { labelFirst :: Maybe Label,
-                                       labels :: Map Label Label }
+data LabelCollector l = LabelCollector { labelFirst :: Maybe l,
+                                         labels :: Map l l }
                       deriving Show
   
 getLabelFirst = gets labelFirst
@@ -30,11 +30,11 @@ collectLabel (Label l) = do
 
 collectLabel (Stmt _) = putLabelFirst Nothing
 
-unifyLabels :: SourceProgram -> SourceProgram
+unifyLabels :: (Ord l, Show l) => [Directive r l] -> [Directive r l]
 unifyLabels prog = compress False $ map unify prog
   where s' = execState (mapM_ collectLabel prog) $ LabelCollector Nothing Map.empty
         lookup l = case Map.lookup l $ labels s' of
-          Nothing -> error $ unwords ["Undefined label", l]
+          Nothing -> error $ unwords ["Undefined label", show l]
           Just l' -> l'
 
         unify (Label l) = Label $ lookup l
@@ -49,13 +49,13 @@ unifyLabels prog = compress False $ map unify prog
         compress _     (x:xs)         = x:compress False xs
         compress _     []             = []
 
-groupLabels :: SourceProgram -> [(Maybe Label, [Stmt Reg Label])]
+groupLabels :: [Directive r l] -> [(Maybe l, [Stmt r l])]
 groupLabels = groupLabels' (Nothing, [])
   where groupLabels' (l, ss) ((Label l'):xs) = (l, reverse ss):groupLabels' (Just l', []) xs
         groupLabels' (l, ss) ((Stmt s):xs)   = groupLabels' (l, s:ss) xs
         groupLabels' (l, ss) []              = [(l, reverse ss)]
 
-prune :: [Stmt Reg l] -> [Stmt Reg l]
+prune :: [Stmt r l] -> [Stmt r l]
 prune = foldr untilJmp []
   where untilJmp s acc | isJmp s   = [s]
                        | otherwise = s:acc
@@ -64,14 +64,14 @@ prune = foldr untilJmp []
         isJmp (Jz _ _) = True
         isJmp _        = False
         
-cut :: [Stmt Reg Label] -> [[Stmt Reg Label]]
+cut :: [Stmt r l] -> [[Stmt r l]]
 cut ss = cut' [] ss
   where cut' group (s@(Jz _ _):ss) = (reverse (s:group)):cut' [] ss
         cut' group (s:ss)          = cut' (s:group) ss
         cut' []    []              = []
         cut' group []              = [reverse group]
         
-partitions :: SourceProgram -> [(Int, [Stmt Reg Int])]        
+partitions :: (Ord l, Show l) => [Directive r l] -> [(Int, [Stmt r Int])]
 partitions p = map (fmap prune) $ map addContinue $ map (fmap (map resolveStmt)) parts'
   where parts = concatMap cut' $ groupLabels $ unifyLabels p 
         cut' (l, ss) = zip (l:repeat Nothing) (cut ss)
@@ -94,5 +94,5 @@ partitions p = map (fmap prune) $ map addContinue $ map (fmap (map resolveStmt))
         resolveStmt (Jmp l) = Jmp $ lookup l
         resolveStmt (Jz r l) = Jz r $ lookup l
         
-        addContinue :: (Int, [Stmt Reg Int]) -> (Int, [Stmt Reg Int])
+        addContinue :: (Int, [Stmt r Int]) -> (Int, [Stmt r Int])
         addContinue (l, ss) = (l, ss ++ [Jmp (succ l)])

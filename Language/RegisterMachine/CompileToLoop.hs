@@ -1,5 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
-module Language.RegisterMachine.CompileToLoop where
+module Language.RegisterMachine.CompileToLoop (toLoop) where
 
 import Prelude hiding (mapM)
 import Data.Traversable (mapM)        
@@ -21,7 +21,7 @@ data Var reg = Reg reg
              | NZ
              deriving Show
 
-toLoop :: R.SourceProgram -> [L.Stmt Int]
+toLoop :: (Ord r, Ord l, Show l) => [R.Directive r l] -> [L.Stmt Int]
 toLoop prog = let (_, _, prog'') = runRWS compileProg undefined ()
               in layout prog''
     where parts = partitions prog
@@ -86,14 +86,3 @@ compile (R.Jz r l)    = do
           L.While NZ [
             L.Dec NZ,
             L.Inc pcNonZero]]
-        
-p = [
- R.Stmt $ R.Inc "x",
- R.Label "foo",
- R.Label "bar",
- R.Stmt $ R.Inc "y",
- R.Stmt $ R.Dec "x",
- R.Stmt $ R.Jz "x" "bar",
- R.Stmt $ R.Inc "z",
- R.Stmt $ R.Jmp "foo",
- R.Stmt $ R.Inc "z"]
