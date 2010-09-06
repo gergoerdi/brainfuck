@@ -21,14 +21,14 @@ goto k | k >= 0     = replicate k B.IncPtr
 at k x = goto k ++ x ++ goto (-k)
 
 optimize :: B.Program -> B.Program
-optimize xs = compactify xs []
+optimize xs = telescope xs []
   where B.IncPtr  ≈ B.DecPtr  = True
         B.DecPtr  ≈ B.IncPtr  = True
         B.IncData ≈ B.DecData = True
         B.DecData ≈ B.IncData = True
         _         ≈ _         = False
 
-        compactify (x:xs) (y:ys)       | x ≈ y = compactify xs ys
-        compactify ((B.While p):xs) ys         = compactify xs ((B.While $ optimize p):ys)
-        compactify (x:xs) ys                   = compactify xs (x:ys)
-        compactify []     ys                   = reverse ys
+        telescope (x:xs) (y:ys)       | x ≈ y = telescope xs ys
+        telescope ((B.While p):xs) ys         = telescope xs ((B.While $ optimize p):ys)
+        telescope (x:xs) ys                   = telescope xs (x:ys)
+        telescope []     ys                   = reverse ys
