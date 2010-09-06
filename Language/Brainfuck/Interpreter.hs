@@ -10,32 +10,27 @@ import Data.Function (fix)
 type Cell = Word8
 data Memory = M [Cell] [Cell]            
 
-memory = M [] (cycle [0])            
-            
 pred' x | x == minBound = maxBound
         | otherwise     = pred x
 
 succ' x | x == maxBound = minBound
         | otherwise     = succ x
                       
-evalStep :: Stmt -> Memory -> IO Memory
-evalStep IncPtr    = \   (M ls     (x:rs)) -> return $ M (x:ls) rs
-evalStep DecPtr    = \   (M (x:ls) rs)     -> return $ M ls (x:rs)
-evalStep IncData   = \   (M ls     (x:rs)) -> return $ M ls (succ' x:rs)
-evalStep DecData   = \   (M ls     (x:rs)) -> return $ M ls (pred' x:rs)
-evalStep Output    = \ m@(M ls     (x:rs)) -> putChar (chr $ fromIntegral x) >> return m
-evalStep Input     = \   (M ls     (_:rs)) -> do c <- readLn
-                                                 let x' = fromIntegral $ ord c
-                                                 return $ M ls (x':rs)
-evalStep (While ps) = fix $ \loop ->
-                        \ m@(M ls (x:rs)) -> if x == 0 then return m
-                                               else foldl (>>=) (return m) evals >>= loop
-  where evals = map evalStep ps
+evalStep :: Memory -> Stmt -> IO Memory
+evalStep   (M ls     (x:rs)) IncPtr  = return $ M (x:ls) rs
+evalStep   (M (x:ls) rs)     DecPtr  = return $ M ls (x:rs)
+evalStep   (M ls     (x:rs)) IncData = return $ M ls (succ' x:rs)
+evalStep   (M ls     (x:rs)) DecData = return $ M ls (pred' x:rs)
+evalStep m@(M ls     (x:rs)) Output  = putChar (chr $ fromIntegral x) >> return m
+evalStep   (M ls     (_:rs)) Input   = do c <- readLn
+                                          let x' = fromIntegral $ ord c
+                                          return $ M ls (x':rs)
+evalStep m@(M ls     (x:rs)) p@(While ps) | x == 0 = return m
+                                          | otherwise = do m' <- eval m ps 
+                                                           evalStep m' p
                          
-eval :: [Stmt] -> Memory -> IO Memory
-eval [] = return
-eval (p:ps) = \m -> evalStep p m >>= eval ps
+eval :: Memory -> [Stmt] -> IO Memory
+eval = foldM evalStep
 
--- eval = flip $ foldM $ flip evalStep
-
-run p = eval p memory       
+run = eval memory
+  where memory = M [] (cycle [0])
