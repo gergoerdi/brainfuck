@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Language.Loop.Syntax where
 
-import Data.Functor
 import Data.Foldable
 import Data.Traversable
 

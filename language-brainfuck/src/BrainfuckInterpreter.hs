@@ -1,6 +1,5 @@
 module Main where
 
-import Language.Brainfuck.Syntax
 import Language.Brainfuck.Parser
 -- import Language.Brainfuck.Interpreter.IO
 import Language.Brainfuck.Interpreter

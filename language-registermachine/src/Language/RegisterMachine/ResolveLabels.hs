@@ -5,9 +5,7 @@ import Language.RegisterMachine.Syntax
 import Control.Monad.RWS
 import Data.Maybe
 import Control.Applicative
-import Control.Monad
     
-import Data.Map (Map)
 import qualified Data.Map as Map
     
 collectLabel (Stmt _) = modify succ
@@ -33,7 +31,7 @@ resolveDirective (Stmt s) = do s' <- resolveStmt s
                                tell [s']                                    
 resolveDirective (Label _) = return ()
                       
-resolveLabels :: SourceProgram -> [(LineNum, Stmt RegName LineNum)]
+resolveLabels :: SourceProgram -> [(LineNum, Stmt Reg LineNum)]
 resolveLabels prog = zip [0..] prog'
     where labels = collectLabels prog
           (_, _, prog') = runRWS (mapM resolveDirective prog) labels ()

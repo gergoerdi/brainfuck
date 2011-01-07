@@ -5,8 +5,6 @@ import Prelude hiding (mapM)
 import Data.Traversable (mapM)        
 import Control.Monad.State hiding (mapM)
 import Control.Monad.RWS hiding (mapM)
-import Control.Monad.Reader hiding (mapM)
-import Data.List (nubBy)    
 
 import qualified Language.RegisterMachine.Syntax as R
 import Language.RegisterMachine.CompileToLoop.Partitions

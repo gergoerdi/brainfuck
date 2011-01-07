@@ -1,9 +1,14 @@
 *.o
 *.hi
+*.p_o
+*.p_hi
 
 samples/*.asm
 
-BrainfuckCompiler
-BrainfuckCompilerLLVM
-BrainfuckInterpreter
-RegisterToBrainfuck
+brainfuck-compiler/BrainfuckCompiler
+brainfuck-compiler/BrainfuckCompilerLLVM
+brainfuck-compiler/BrainfuckInterpreter
+register-machine/RegisterToBrainfuck
+
+language-brainfuck/dist
+language-registermachine/dist

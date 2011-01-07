@@ -1,8 +1,8 @@
 module Language.Brainfuck.Parser (parseBrainFuck) where
 
 import Language.Brainfuck.Syntax
-    
 import Text.ParserCombinators.Parsec
+import Control.Applicative ((<*), (*>), (<$>))
 
 symbol c = spaces >> char c >> spaces    
     
@@ -16,13 +16,6 @@ stmt = incPtr <|> decPtr <|> incData <|> decData <|> output <|> input <|> while
       decData = symbol '-' >> return DecData
       output  = symbol '.' >> return Output
       input   = symbol ',' >> return Input
-      while   = do symbol '['
-                   stmts <- program
-                   symbol ']'
-                   return $ While stmts
+      while   = symbol '[' *> (While <$> program) <* symbol ']'
 
-parseBrainFuck = parseFromFile program'
-    where program' = do p <- program
-                        eof
-                        return p
-                 
+parseBrainFuck = parseFromFile (program <* eof)

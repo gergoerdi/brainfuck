@@ -11,6 +11,7 @@ data Stmt reg label = Inc reg
           deriving Show
 
 type Reg = String
+type LineNum = Int
 type Label = String
 
 data Directive reg label = Stmt (Stmt reg label)

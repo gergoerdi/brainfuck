@@ -6,10 +6,8 @@ import Language.RegisterMachine.CompileToLoop.Labeller
 
 import Control.Monad.State
 import Data.Maybe (fromJust)
-import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Control.Applicative    
 
 data LabelCollector l = LabelCollector { labelFirst :: Maybe l,
                                          labels :: Map l l }

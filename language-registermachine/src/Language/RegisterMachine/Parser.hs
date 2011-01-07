@@ -5,6 +5,7 @@ import Language.RegisterMachine.Syntax.Macros
 
 import Control.Monad (liftM, guard)
 import Text.ParserCombinators.Parsec hiding (label)
+import Control.Applicative ((<$>), (<*>), (<*), (*>))
 
 parseRegisterMachine = parseFromFile program
 
@@ -16,76 +17,31 @@ program = do
   eof
   return $ MacroProgram ms ds
 
-macroDef = do
-  keyword "def"
-  m <- symbol
-  formals <- many symbol
-  newLine
-  ds <- directives
-  keyword "enddef" >> newLine
-  return $ Macro m formals ds
+macroDef = keyword "def" *> 
+             (Macro <$> symbol <*> many symbol <* newLine <*> directives) 
+           <* keyword "enddef"
 
 stmt :: Parser PrimitiveStmt
 stmt = inc <|> dec <|> clr <|> mov <|> input <|> output <|> jmp <|> jz <?> "Statement"
-  where inc = do
-          keyword "inc"
-          r <- register
-          return $ Inc r
-          
-        dec = do
-          keyword "dec"
-          r <- register
-          return $ Dec r
-          
-        clr = do
-          keyword "clr"
-          r <- register
-          return $ Clr r
-          
-        mov = do
-          keyword "mov"
-          r1 <- register
-          r2 <- register
-          return $ Mov r1 r2
-          
-        input = do
-          keyword "in"
-          r <- register
-          return $ Input r
-          
-        output = do
-          keyword "out"
-          r <- register
-          return $ Output r
-          
-        jmp = do
-          try $ keyword "jmp"
-          l <- label
-          return $ Jmp l
-                      
-        jz = do
-          keyword "jz"
-          r <- register
-          l <- label
-          return $ Jz r l
+  where inc = keyword "inc" *> (Inc <$> register)
+        dec = keyword "dec" *> (Dec <$> register)
+        clr = keyword "clr" *> (Clr <$> register)          
+        mov = keyword "mov" *> (Mov <$> register <*> register)        
+        input = keyword "in" *> (Input <$> register)          
+        output = keyword "out" *> (Output <$> register)          
+        jmp = (try $ keyword "jmp") *> (Jmp <$> label)
+        jz = keyword "jz" *> (Jz <$> register <*> label)
             
 macroStmt = liftM PrimitiveStmt (try stmt) <|> add <|> macroCall
-  where add = do
-          keyword "add"
-          r <- register
-          a <- arg
-          return $ Add r a          
+  where add = keyword "add" *> (Add <$> register <*> arg)
           
         macroCall = do
           macro <- symbol
           guard $ macro /= "enddef"
-          args <- many arg
-          return $ MacroCall macro args          
+          MacroCall macro <$> many arg
 
 directive = try label <|> liftM MacroStmt macroStmt
-  where label = do l <- labelName
-                   char ':'
-                   return $ MacroLabel l                   
+  where label = (MacroLabel <$> labelName) <* char ':'
 
 directives = (try directive) `sepEndBy` newLine
 
@@ -93,10 +49,8 @@ register = symbol
 label = lexeme labelName
 
 labelName = genLabel <|> globalLabel
-  where genLabel = do
-          char '_'
-          liftM GenSym symbolName
-        globalLabel = liftM Global symbolName
+  where genLabel = char '_' *> (GenSym <$> symbolName)
+        globalLabel = Global <$> symbolName
            
 symbol = lexeme symbolName
 symbolName = do
@@ -127,7 +81,7 @@ whiteSpace = skipMany inlineSpace
 
 commentLine :: Parser ()
 commentLine = do
-  try $ whiteSpace >> char ';'
+  _ <- try $ whiteSpace >> char ';'
   skipMany $ satisfy (/= '\n')
   return ()
 

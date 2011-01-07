@@ -12,7 +12,6 @@ import Language.RegisterMachine.CompileToLoop.Labeller
 import Control.Monad.Reader
 import Data.List (intercalate)
 import Data.Maybe (fromJust)
-import Debug.Trace (trace)
 
 type Symbol = String
 
@@ -50,7 +49,7 @@ processMacros (MacroProgram ms ds) = fst $ runLabeller (runReaderT (instantiateD
                actuals = Map.empty }
         macros = Map.fromList $ map toKV ms
           where toKV m@(Macro name _ _) = (name, m)
-        labels = map (("_L"++) . show) [0..]
+        labels = map (("_L"++) . show) ([0..] :: [Integer])
 
 data R = R { macros :: Map Symbol Macro,
              stack :: [Symbol],

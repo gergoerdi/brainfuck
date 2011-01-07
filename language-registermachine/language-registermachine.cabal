@@ -1,0 +1,65 @@
+-- The name of the package.
+Name:                language-registermachine
+
+-- The package version. See the Haskell package versioning policy
+-- (http://www.haskell.org/haskellwiki/Package_versioning_policy) for
+-- standards guiding when and how versions should be incremented.
+Version:             0.1.0
+
+-- A short (one-line) description of the package.
+Synopsis:            Minimal, Turing-complete languages: Register machine and Loop
+
+-- A longer description of the package.
+Description:            Various functions to manipulate and compile two simple Turing-complete
+                        languages: register machine programs and programs using
+                        while-loops. See the home page link and the
+                        language-registermachine-brainfuck package for an example of compiling
+                        register machine programs to Brainfuck.
+
+Homepage:  http://gergo.erdi.hu/blog/2010-09-07-from_register_machines_to_brainfuck,_part_2/
+
+-- The license under which the package is released.
+License:             BSD3
+
+-- The file containing the license text.
+License-file:        LICENSE
+
+-- The package author(s).
+Author:              Gergo Erdi <http://gergo.erdi.hu/>
+
+-- An email address to which users can send suggestions, bug reports,
+-- and patches.
+Maintainer:          gergo@erdi.hu
+
+-- A copyright notice.
+-- Copyright:           
+
+Category:            Language
+
+Build-type:          Simple
+
+-- Extra files to be distributed with the package, such as examples or
+-- a README.
+-- Extra-source-files:  
+
+-- Constraint on the version of Cabal needed to build this package.
+Cabal-version:       >=1.6
+
+
+source-repository head
+  Type:     git
+  Location: git://github.com/gergoerdi/brainfuck.git
+
+Library
+  hs-source-dirs:      src
+  Exposed-modules:     Language.RegisterMachine.Syntax Language.RegisterMachine.Syntax.Macros
+                       Language.RegisterMachine.Parser
+                       Language.RegisterMachine.ResolveLabels
+                       Language.RegisterMachine.CompileToLoop
+                       Language.RegisterMachine.CompileToLoop.Labeller Language.RegisterMachine.CompileToLoop.Partitions
+                       
+                       Language.Loop.Syntax
+
+  ghc-options:         -Wall -fwarn-tabs -fno-warn-name-shadowing -fno-warn-missing-signatures -fno-warn-incomplete-patterns -fno-warn-unused-binds
+
+  Build-depends:       base >= 4, parsec >= 3, pretty, prettyclass, language-brainfuck, monads-fd, containers
