@@ -2,11 +2,11 @@ module Main where
 
 import Language.Brainfuck.CompileToIA32
 import Language.Brainfuck.Parser
-import Language.IA32.Pretty
+import Language.IA32.Pretty ()
     
-import Control.Monad.RWS
 import Text.PrettyPrint.HughesPJClass (pPrint)
     
+import System (getProgName)
 import System.Environment (getArgs)
 
 main = do args <- getArgs
@@ -16,4 +16,5 @@ main = do args <- getArgs
                                Left err -> error (show err)
                                Right prog -> do let compiled = compile prog
                                                 print $ pPrint $ compiled
-            _ -> error "Usage: brainfuck filename.bf"
+            _ -> do self <- getProgName
+                    error $ unwords ["Usage:", self, "filename.bf"]

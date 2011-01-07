@@ -3,7 +3,6 @@ module Language.Brainfuck.Pretty (pPrintProgram) where
 import Language.Brainfuck.Syntax
 import Text.PrettyPrint
 import Text.PrettyPrint.HughesPJClass
-import Data.List (intersperse)
     
 pPrintProgram :: Program -> Doc
 pPrintProgram = hcat . map pPrint

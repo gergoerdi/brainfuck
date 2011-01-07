@@ -5,6 +5,7 @@ import Language.Brainfuck.Parser
 -- import Language.Brainfuck.Interpreter.IO
 import Language.Brainfuck.Interpreter
     
+import System (getProgName)  
 import System.Environment (getArgs)
 
 parseAndRun filename = do parseRes <- parseBrainFuck filename
@@ -15,4 +16,5 @@ parseAndRun filename = do parseRes <- parseBrainFuck filename
 main = do args <- getArgs
           case args of
             [filename] -> parseAndRun filename
-            _ -> error "Usage: brainfuck filename.bf"
+            _ -> do self <- getProgName
+                    error $ unwords ["Usage:", self, "filename.bf"]

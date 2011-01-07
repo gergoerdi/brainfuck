@@ -6,7 +6,8 @@ import Data.Char (ord, chr)
 import Data.Word (Word8, Word16)
 import Data.IORef
 import Data.Array.IO
-    
+import Control.Applicative ((<$>))    
+
 type Cell = Word8
 type Ptr = Word16
 type Memory = IOUArray Ptr Cell
@@ -32,10 +33,12 @@ run p = do memory <- newListArray (minBound, maxBound) (repeat 0) :: IO Memory
                     evalStep DecData = do i <- readIORef ptr
                                           x <- readArray memory i
                                           writeArray memory i (pred' x)
+                    evalStep Input = do i <- readIORef ptr
+                                        c <- getChar
+                                        writeArray memory i (fromIntegral $ ord c)
                     evalStep Output = do i <- readIORef ptr
-                                         x <- readArray memory i
-                                         let c = chr $ fromIntegral x
-                                         putChar c
+                                         c <- fromIntegral <$> readArray memory i
+                                         putChar $ chr c
                     evalStep (While p) = do i <- readIORef ptr
                                             x <- readArray memory i
                                             if x == 0 then return ()

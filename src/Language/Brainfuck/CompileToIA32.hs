@@ -61,7 +61,7 @@ compileStep (BF.While prog, 1) = do
     l <- label
     tellOp [Cmp (Target dat) (Imm 0),
             JmpZero l']
-    mapM compileStep $ group prog
+    mapM_ compileStep $ group prog
     tellOp [Jmp l]
     l' <- label
   return ()
