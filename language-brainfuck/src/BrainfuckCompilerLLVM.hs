@@ -11,7 +11,6 @@ import System (getProgName)
 import System.Path (splitExt)
 import System.Path.NameManip (split_path)
 
-import Control.Applicative
 import Control.Monad.State
 import Data.Word
 
@@ -52,7 +51,7 @@ compileToModule stmts = do
         compile Output = do
           x <- read
           x' <- lift $ zext x
-          lift $ call putchar x'
+          _ <- lift $ call putchar x'
           return ()
         compile Input = do
           x <- lift $ call getchar
@@ -83,7 +82,7 @@ compileToModule stmts = do
           put index'
           lift $ defineBasicBlock loopAfter
           
-    execStateT (mapM_ compile stmts) (valueOf (0 :: Word32))
+    evalStateT (mapM_ compile stmts) (valueOf (0 :: Word32))
     ret ()
 
 compile prog = do

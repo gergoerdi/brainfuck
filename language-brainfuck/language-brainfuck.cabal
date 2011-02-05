@@ -65,7 +65,20 @@ Executable bfc
                        Language.Brainfuck.Syntax Language.Brainfuck.Parser Language.Brainfuck.CompileToIA32
   
   -- Extra tools (e.g. alex, hsc2hs, ...) needed to build the source.
-  -- Build-tools:         
+  -- Build-tools:
+  
+Executable bfc-llvm
+  hs-source-dirs:    src
+
+  Main-is:             BrainfuckCompilerLLVM.hs
+
+  ghc-options:       -Wall -fwarn-tabs
+                     -fno-warn-incomplete-patterns -fno-warn-unused-binds -fno-warn-unused-matches
+                     -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-orphans
+
+  Build-depends:       base >= 4, haskell98, parsec, pretty, prettyclass, mtl, MissingH, llvm
+  Other-modules:       Language.IA32.Syntax Language.IA32.Pretty
+                       Language.Brainfuck.Syntax Language.Brainfuck.Parser Language.Brainfuck.CompileToIA32
 
 Executable bfi  
   hs-source-dirs:    src
