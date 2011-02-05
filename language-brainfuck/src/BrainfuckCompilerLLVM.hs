@@ -1,150 +1,111 @@
-{-# LANGUAGE ScopedTypeVariables, NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
 import Prelude hiding (print)    
     
 import Language.Brainfuck.Syntax
 import Language.Brainfuck.Parser
-import Language.Brainfuck.Interpreter
     
 import System.Environment (getArgs)
+import System (getProgName)
+import System.Path (splitExt)
+import System.Path.NameManip (split_path)
+
 import Control.Applicative
+import Control.Monad.State
 import Data.Word
 
 import LLVM.Core
-import LLVM.Util.Optimize
-import LLVM.ExecutionEngine    
 
-import Control.Monad.RWS
+memSize :: Word32
+memSize = 30000
 
-data R = R { buf :: Value (Ptr Word8),
-             print :: Function (Word8 -> IO ())}
-data S = S { idx :: Value Word32 }
-      
-type Compiler r a = RWST R () S (CodeGenFunction r) a    
-
-putIdx idx = modify $ \s -> s{idx = idx}
+compileToModule stmts = do
+  (putchar :: Function (Word32 -> IO Word32)) <- newNamedFunction ExternalLinkage "putchar"
+  (getchar :: Function (IO Word32)) <- newNamedFunction ExternalLinkage "getchar"
+  (main :: Function (IO ())) <- newNamedFunction ExternalLinkage "main"    
     
-compile :: Stmt -> Compiler r ()    
-compile IncPtr = do
-  idx <- gets idx
-  (lift $ add idx (valueOf (1 :: Word32))) >>= putIdx
-  return ()
-
-compile DecPtr = do
-  idx <- gets idx
-  (lift $ sub idx (valueOf (1 :: Word32))) >>= putIdx
-  return ()
-      
-compile IncData = do
-  withCell $ \v -> add v (valueOf (1 :: Word8))
-                           
-compile DecData = do
-  withCell $ \v -> sub v (valueOf (1 :: Word8))
-                           
-compile Output = do
-  v <- readCell
-
-  print <- asks print
-  lift $ call print v          
-  return ()
-         
-compile (While prog) = do
-  buf <- asks buf
-  i <- gets idx
-
-  loop <- lift $ newBasicBlock
-  body <- lift $ newBasicBlock
-  end <- lift $ newBasicBlock
-         
-  start <- lift $ getCurrentBasicBlock
-  lift $ br loop
-         
-  lift $ defineBasicBlock loop
-  i' <- lift $ phi [(i, start)]
-  ptr <- lift $ getElementPtr buf (i', ())
-  v <- lift $ load ptr
-  finished <- lift $ icmp IntEQ v (valueOf (0 :: Word8))
-  lift $ condBr finished end body
-
-  lift $ defineBasicBlock body
-  putIdx i'
-  mapM_ compile prog
-  i'' <- gets idx
-  lift $ addPhiInputs i' [(i'', body)]
-  lift $ br loop
-         
-  lift $ defineBasicBlock end
-  putIdx i''
-  return ()
-
--- compile _ = return ()
-
-withCell f = do
-  v <- readCell
-  v' <- lift $ f v
-  writeCell v'
-  return ()
-
-calcPtr = do
-  buf <- asks buf
-  idx <- gets idx
-  lift $ getElementPtr buf (idx, ())
-         
-readCell = do
-  ptr <- calcPtr
-  lift $ load ptr
-
-writeCell v = do
-  ptr <- calcPtr
-  lift $ store v ptr
-         
-compileMain prog = do
-  putchar <- newNamedFunction ExternalLinkage "putchar" :: CodeGenModule (Function (Word32 -> IO Word32))
-
-  print :: Function (Word8 -> IO ()) <- createFunction InternalLinkage $ \v -> do
-    v' <- zext v
-    call putchar v'
+  defineFunction main $ do
+    mem :: Value (Ptr Word8) <- arrayAlloca memSize    
+                                 
+    let read = do 
+          index <- get
+          ptr <- lift $ getElementPtr mem (index, ())
+          lift $ load ptr            
+        set x = do 
+          index <- get
+          ptr <- lift $ getElementPtr mem (index, ())
+          lift $ store x ptr
+                                 
+        compile IncPtr = do
+          index <- get            
+          put =<< lift (add index (valueOf (1 :: Word32)))
+        compile DecPtr = do
+          index <- get            
+          put =<< lift (sub index (valueOf (1 :: Word32)))
+        compile IncData = do
+          x <- read
+          set =<< lift (add x (valueOf (1 :: Word8)))
+        compile DecData = do
+          x <- read
+          set =<< lift (sub x (valueOf (1 :: Word8)))
+        compile Output = do
+          x <- read
+          x' <- lift $ zext x
+          lift $ call putchar x'
+          return ()
+        compile Input = do
+          x <- lift $ call getchar
+          x' <- lift $ trunc x
+          set x'
+        compile (While stmts) = do
+          loopStart <- lift $ newBasicBlock
+          loop <- lift $ newBasicBlock
+          loopAfter <- lift $ newBasicBlock
+          before <- lift $ getCurrentBasicBlock
+          lift $ br loopStart
+          
+          lift $ defineBasicBlock loopStart
+          index <- get            
+          index' <- lift $ phi [(index, before)]
+          put index'
+          x <- read
+          b <- lift $ icmp IntEQ x (valueOf (0 :: Word8))
+          lift $ condBr b loopAfter loop
+          
+          lift $ defineBasicBlock loop                        
+          mapM_ compile stmts
+          index'' <- get
+          loopEnd <- lift $ getCurrentBasicBlock
+          lift $ addPhiInputs index' [(index'', loopEnd)]
+          lift $ br loopStart
+          
+          put index'
+          lift $ defineBasicBlock loopAfter
+          
+    execStateT (mapM_ compile stmts) (valueOf (0 :: Word32))
     ret ()
-            
-  main :: Function (IO ()) <- createNamedFunction ExternalLinkage "main" $ do
-    buf <- arrayAlloca (30000 :: Word32) :: CodeGenFunction r (Value (Ptr Word8))
 
-    do
-      start <- getCurrentBasicBlock
-      loop <- newBasicBlock
-      end <- newBasicBlock
+compile prog = do
+  m <- newModule
+  defineModule m $ compileToModule prog
+  return m
 
-      br loop      
-      defineBasicBlock loop      
-      i <- phi [(valueOf (0 :: Word32), start)]
-      ptr <- getElementPtr buf (i, ())
-      store (valueOf (0 :: Word8)) ptr
-            
-      i' <- add i (valueOf (1 :: Word32))
-      addPhiInputs i [(i', loop)]
-      finished <- icmp IntEQ i' (valueOf (30000 :: Word32))
-      condBr finished end loop
+main = do
+  args <- getArgs
+  case args of
+    [filename] -> do
+      parseRes <- parseBrainFuck filename
+      case parseRes of
+        Left err -> error (show err)
+        Right prog -> do
+          m <- compile prog
+          writeBitcodeToFile outFilename m            
+      where
+        (dir, filename') = split_path filename
+        (basename, ext) = splitExt filename'
+        outFilename = (if ext == ".bf" then basename else filename') ++ ".bc"
 
-      defineBasicBlock end
-
-    idx <- return $ valueOf (0 :: Word32)
-    runRWST (mapM compile prog) R{buf=buf, print=print} S{idx=idx} 
-    ret ()
-        
-  return main
-
-main = do args <- getArgs
-          case args of
-            [filename] -> do parseRes <- parseBrainFuck filename
-                             case parseRes of
-                               Left err -> error (show err)
-                               Right prog -> do mod <- bf prog
-                                                writeBitcodeToFile "bf.bc" mod
-            _ -> error "Usage: brainfuck filename.bf"
-
-bf prog = do
-  mod <- newNamedModule "brainfuck"
-  main <- defineModule mod (compileMain prog)
-  dumpValue main
-  return mod
+    _ -> do 
+      self <- getProgName
+      error $ unwords ["Usage:", self, "filename.bf"]
