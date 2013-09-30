@@ -6,8 +6,7 @@ import Language.IA32.Pretty ()
     
 import Text.PrettyPrint.HughesPJClass (pPrint)
     
-import System (getProgName)
-import System.Environment (getArgs)
+import System.Environment (getProgName, getArgs)
 
 main = do args <- getArgs
           case args of

@@ -4,8 +4,7 @@ import Language.Brainfuck.Parser
 -- import Language.Brainfuck.Interpreter.IO
 import Language.Brainfuck.Interpreter
     
-import System (getProgName)  
-import System.Environment (getArgs)
+import System.Environment (getProgName, getArgs)
 
 parseAndRun filename = do parseRes <- parseBrainFuck filename
                           case parseRes of

@@ -58,7 +58,7 @@ Executable bfc
                      -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-orphans
 
   -- Packages needed in order to build this package.
-  Build-depends:       base >= 4, haskell98, parsec, pretty, prettyclass, mtl
+  Build-depends:       base >= 4, parsec, pretty, prettyclass, mtl
   
   -- Modules not exported by this package.
   Other-modules:       Language.IA32.Syntax Language.IA32.Pretty
@@ -76,7 +76,7 @@ Executable bfc-llvm
                      -fno-warn-incomplete-patterns -fno-warn-unused-binds -fno-warn-unused-matches
                      -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-orphans
 
-  Build-depends:       base >= 4, haskell98, parsec, pretty, prettyclass, mtl, MissingH, llvm
+  Build-depends:       base >= 4, parsec, pretty, prettyclass, mtl, MissingH, llvm
   Other-modules:       Language.IA32.Syntax Language.IA32.Pretty
                        Language.Brainfuck.Syntax Language.Brainfuck.Parser Language.Brainfuck.CompileToIA32
 
@@ -88,7 +88,7 @@ Executable bfi
                      -fno-warn-incomplete-patterns -fno-warn-unused-binds -fno-warn-unused-matches
                      -fno-warn-missing-signatures -fno-warn-name-shadowing -fno-warn-orphans
 
-  Build-depends:     base >= 4, haskell98, parsec, pretty, prettyclass, mtl
+  Build-depends:     base >= 4, parsec, pretty, prettyclass, mtl
   
   Other-modules:     Language.Brainfuck.Syntax Language.Brainfuck.Parser Language.Brainfuck.Interpreter
   

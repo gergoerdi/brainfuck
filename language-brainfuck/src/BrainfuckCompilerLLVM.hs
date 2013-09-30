@@ -6,8 +6,7 @@ import Prelude hiding (print)
 import Language.Brainfuck.Syntax
 import Language.Brainfuck.Parser
     
-import System.Environment (getArgs)
-import System (getProgName)
+import System.Environment (getProgName, getArgs)
 import System.Path (splitExt)
 import System.Path.NameManip (split_path)
 
