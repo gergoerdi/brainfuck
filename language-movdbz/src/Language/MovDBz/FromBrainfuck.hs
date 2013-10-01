@@ -7,36 +7,54 @@ import Data.Word
 
 import Control.Monad.State
 import Control.Applicative
+import Control.Arrow
+import Data.Bifunctor
+import Data.Maybe (fromMaybe)
 
+import Data.Map (Map, (!))
+import qualified Data.Map as Map
 
 type CellAddr = Word16
 type CellWidth = Word8
 
-data Reg = Ptr
-         | Cell CellAddr
-         | C0
+data Reg = C0
          | CMaxData
          | CMaxAddr
+         | Ptr
          | Tmp
-         deriving (Show, Eq)
+         | Cell CellAddr
+         deriving (Show, Eq, Ord)
+
+-- It is very important to keep C0, CMaxData and CMaxAddr at the start
+-- of the memory, since these will need to be initialized to non-0 values
+layoutReg :: CellAddr -> Reg -> Int
+layoutReg maxCell r = case r of
+    C0 -> 0
+    CMaxData -> 1
+    CMaxAddr -> 2
+    Ptr -> 3
+    Tmp -> 4
+    Cell cell -> 5 + fromIntegral cell
 
 data ScanCont = Inc Label
               | Dec Label
               | Print Label
               | Branch Label Label
-              deriving (Show, Eq)
+              deriving (Show, Eq, Ord)
 
 data Label = Src Int
-           | Scan CellAddr ScanCont
-           | Printer CellAddr Label
-           | ScanFinished CellAddr ScanCont
-           | DecCell CellAddr Label
-           | DoIncCell CellAddr CellWidth Label
-           | UnderflowPtr Label
-           | UnderflowCell CellAddr Label
-           | DoIncPtr CellAddr Label
-           | End
-           deriving (Show, Eq)
+           | S SyntheticLabel
+           deriving (Show, Eq, Ord)
+
+data SyntheticLabel = Scan CellAddr ScanCont
+                    | ScanFinished CellAddr ScanCont
+                    | DecCell CellAddr Label
+                    | DoIncCell CellAddr CellWidth Label
+                    | UnderflowPtr Label
+                    | UnderflowCell CellAddr Label
+                    | DoIncPtr CellAddr Label
+                    | End
+                    deriving (Show, Eq, Ord)
 
 type Compile a = State Int a
 
@@ -50,78 +68,120 @@ compile1 maxCell bf = do
             loop <- Src <$> get
             next <- Src <$> (modify succ *> get)
             return $
-              (this, jmp $ Scan maxCell $ Branch next start) :
+              (this, jmp . S $ Scan 0 $ Branch next start) :
               (loop, jmp this) :
               prog
         _ -> do
             next <- Src <$> (modify succ *> get)
             return $ (:[]) . (this,) $ case bf of
-                IncPtr -> jmp $ DoIncPtr maxCell $ next
-                DecPtr -> MOVDBZ Ptr Ptr (UnderflowPtr next) next
-                IncData -> jmp $ Scan maxCell $ Inc next
-                DecData -> jmp $ Scan maxCell $ Dec next
-                Output -> jmp $ Scan maxCell $ Print next
+                IncPtr -> jmp . S $ DoIncPtr maxCell $ next
+                DecPtr -> MOVDBZ Ptr Ptr (S $ UnderflowPtr next) next
+                IncData -> jmp . S $ Scan 0 $ Inc next
+                DecData -> jmp . S $ Scan 0 $ Dec next
+                Output -> jmp . S $ Scan 0 $ Print next
                 Input -> error "Unsupported: Input"
-            
+
 next :: Compile Label
 next = Src <$> get
 
 compile :: CellAddr -> [BF.Stmt] -> Compile [(Label, MOVDBZ.Stmt Reg Label)]
 compile maxCell = fmap concat . mapM (compile1 maxCell)
 
--- "RTS"
+-- "RTS" implementation
 underflowPtr :: Label -> (Label, MOVDBZ.Stmt Reg Label)
-underflowPtr next = (UnderflowPtr next, MOVDBZ CMaxAddr Ptr End next)
+underflowPtr next = (S $ UnderflowPtr next, MOVDBZ CMaxAddr Ptr (S End) next)
 
 underflowCell :: CellAddr -> Label -> (Label, MOVDBZ.Stmt Reg Label)
-underflowCell cell next = (UnderflowCell cell next, MOVDBZ CMaxData (Cell cell) End next)
+underflowCell cell next = (S $ UnderflowCell cell next, MOVDBZ CMaxData (Cell cell) (S End) next)
 
 incPtr :: CellAddr -> Label -> [(Label, MOVDBZ.Stmt Reg Label)]
 incPtr maxCell next = underflowPtr next :
-                       map (\i -> underflowPtr (DoIncPtr (i+1) next)) [0..maxCell-1] ++
-                       map (\i -> (DoIncPtr i next, step i)) [0..maxCell]
+                       map (\i -> underflowPtr (S $ DoIncPtr (i+1) next)) [0..maxCell-1] ++
+                       map (\i -> (S $ DoIncPtr i next, step i)) [0..maxCell]
   where
-    step i = MOVDBZ Ptr Ptr (UnderflowPtr nextStep) nextStep
+    step i = MOVDBZ Ptr Ptr (S $ UnderflowPtr nextStep) nextStep
       where
-        nextStep = if i == maxCell then next else DoIncPtr (i + 1) next
-    
+        nextStep = if i == maxCell then next else S $ DoIncPtr (i + 1) next
+
 
 decCell :: CellAddr -> Label -> [(Label, MOVDBZ.Stmt Reg Label)]
-decCell cell next = [ (DecCell cell next,       MOVDBZ (Cell cell) (Cell cell) (UnderflowCell cell next) next) 
+decCell cell next = [ (S $ DecCell cell next,       MOVDBZ (Cell cell) (Cell cell) (S $ UnderflowCell cell next) next)
                     , underflowCell cell next
                     ]
 
 incCell :: CellAddr -> Label -> [(Label, MOVDBZ.Stmt Reg Label)]
 incCell cell next = underflowCell cell next :
-                    map (\i -> underflowCell cell (DoIncCell cell (i+1) next)) [0..254] ++
-                    map (\i -> (DoIncCell cell i next, step i)) [0..255]
+                    map (\i -> underflowCell cell (S $ DoIncCell cell (i+1) next)) [0..253] ++
+                    map (\i -> (S $ DoIncCell cell i next, step i)) [0..254]
   where
-    step i = MOVDBZ (Cell cell) (Cell cell) (UnderflowCell cell nextStep) nextStep
+    step i = MOVDBZ (Cell cell) (Cell cell) (S $ UnderflowCell cell nextStep) nextStep
       where
-        nextStep = if i == maxBound then next else DoIncCell cell (i + 1) next
+        nextStep = if i == 254 then next else S $ DoIncCell cell (i + 1) next
 
 scan :: CellAddr -> ScanCont -> [(Label, MOVDBZ.Stmt Reg Label)]
-scan maxCell cont = map (\i -> (Scan i cont, step i)) [0..maxCell] ++
-                    map (\i -> (ScanFinished i cont, finish i)) [0..maxCell]
+scan maxCell cont = map (\i -> (S $ Scan i cont, step i)) [0..maxCell] ++
+                    map (\i -> (S $ ScanFinished i cont, finish i)) [0..maxCell] ++
+                    concatMap finalize [0..maxCell]
   where
     step i = MOVDBZ (if i == 0 then Ptr else Tmp) Tmp found nextStep
       where
-        found = ScanFinished i cont
-        nextStep = if i == maxCell then End else Scan (i+1) cont
+        found = S $ ScanFinished i cont
+        nextStep = S $ if i == maxCell then End else Scan (i+1) cont
 
     finish i = case cont of
         Print next -> PRINT (Cell i) next
-        Dec next -> jmp $ DecCell i next
-        Inc next -> jmp $ DoIncCell i 0 next
-        Branch if0 els -> MOVDBZ (Cell i) Tmp if0 els
+        Dec next -> jmp . S $ DecCell i next
+        Inc next -> jmp . S $ DoIncCell i 0 next
+        Branch ifZero els -> MOVDBZ (Cell i) Tmp ifZero els
+
+    finalize i = case cont of
+        Dec next -> decCell i next
+        Inc next -> incCell i next
+        _ -> []
 
 jmp label = MOVDBZ C0 C0 label label
 
 
+labelsOf (PRINT _ label) = [label]
+labelsOf HALT = []
+labelsOf (MOVDBZ _ _ label1 label2) = [label1, label2]
 
-test bfs = flip evalState 0 $ do
-    prog <- compile 5 bfs
+rtsFor :: CellAddr -> SyntheticLabel -> [(Label, MOVDBZ.Stmt Reg Label)]
+rtsFor maxCell (Scan from cont) = if from == 0 then scan maxCell cont else error "Scan with non-zero starting value in non-RTS code"
+rtsFor maxCell ScanFinished{} = error "ScanFinished in non-RTS code"
+rtsFor maxCell (DecCell cell next) = decCell cell next
+rtsFor maxCell (DoIncCell cell from next) = if from == 0 then incCell cell next else error "DoIncCell with non-zero starting value in non-RTS code"
+rtsFor maxCell (UnderflowPtr next) = [underflowPtr next]
+rtsFor maxCell UnderflowCell{} = error "UnderflowCell in non-RTS code"
+rtsFor maxCell (DoIncPtr from next) = if from == 0 then incPtr from next else error "DoIncPtr with non-zero starting value in non-RTS code"
+rtsFor maxCell End = [(S End, HALT)]
+
+doCompile maxCell bfs = flip evalState 0 $ do
+    prog <- compile maxCell bfs
     label <- Src <$> get
     return $ prog ++ [(label, HALT)]
 
-main = test [While [DecPtr]] -- , While [IncPtr, IncData]]
+doRTS maxCell = concatMap (\lab -> case lab of S syn -> rtsFor maxCell syn; _ -> []) .
+                concatMap (labelsOf . snd)
+
+compileBF :: CellAddr -> [BF.Stmt] -> MOVDBZ.Program Int Int
+compileBF maxCell bf = map (layoutLabel *** layout) prog'
+  where
+    prog = doCompile maxCell bf
+    rts = (S End, HALT) : doRTS maxCell prog
+    prog' = Map.toList . Map.fromList $ prog ++ rts
+
+    labelMapping = Map.fromList $ zip (map fst prog') [0..]
+
+    layoutLabel label = fromMaybe (error $ unwords ["no code generated for", show label]) $
+                        Map.lookup label labelMapping
+
+    layout :: MOVDBZ.Stmt Reg Label -> MOVDBZ.Stmt Int Int
+    layout = bimap (layoutReg maxCell) layoutLabel
+
+initialMemory :: CellAddr -> [Word16]
+initialMemory maxCell = 0 : 256 : maxCell+1 : 0 : repeat 0
+
+main = compileBF 1 testProg
+
+testProg = [IncData, IncData, IncData, Output, While [Output, DecData], Output]
