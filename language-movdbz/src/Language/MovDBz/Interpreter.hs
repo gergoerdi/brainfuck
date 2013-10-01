@@ -9,12 +9,12 @@ import Data.Function (fix)
 
 type Label = Int
 type Reg = Int
-type Cell = Word16
+type RegData = Word16
 
-run :: Int -> Int -> [(Label, Stmt Reg Label)] -> [Cell] -> IO ()
-run nLabs nRegs stmts mem0 = do
-    let program = A.array (0, nLabs-1) stmts
-    mem <- (A.newListArray (0, nRegs-1) mem0 :: IO (IOArray Int Cell))
+run :: Int -> Int -> Program Reg Label -> [RegData] -> IO ()
+run maxLab maxReg stmts mem0 = do
+    let program = A.array (0, maxLab) stmts
+    mem <- (A.newListArray (0, maxReg) mem0 :: IO (IOArray Reg RegData))
     flip fix 0 $ \loop pc -> do
         let stmt = program ! pc
         case stmt of

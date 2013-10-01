@@ -12,3 +12,4 @@ instance Bifunctor Stmt where
     bimap f g (PRINT reg label) = PRINT (f reg) (g label)
     bimap f g HALT = HALT
 
+type Program reg label = [(label, Stmt reg label)]
