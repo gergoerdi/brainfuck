@@ -1,5 +1,5 @@
 {-# LANGUAGE TupleSections #-}
-module Language.MovDBz.FromBrainfuck (compileBF, initialMemory) where
+module Language.MovDBz.FromBrainfuck (compileBF, layout, initialMemory) where
 
 import Language.Brainfuck.Syntax as BF
 import Language.MovDBz.Syntax as MOVDBZ
@@ -182,20 +182,22 @@ doRTS :: CellAddr -> MOVDBZ.Program Reg Label -> MOVDBZ.Program Reg Label
 doRTS maxCell = concatMap (\lab -> case lab of S syn -> rtsFor maxCell syn; _ -> []) .
                 concatMap (labelsOf . snd)
 
-compileBF :: CellAddr -> [BF.Stmt] -> MOVDBZ.Program Int Int
-compileBF maxCell bf = map (layoutLabel *** layout) prog'
+compileBF :: CellAddr -> [BF.Stmt] -> MOVDBZ.Program Reg Label
+compileBF maxCell bf = Map.toList . Map.fromList $ prog ++ rts
   where
     prog = doCompile maxCell bf
     rts = (S End, HALT) : doRTS maxCell prog
-    prog' = Map.toList . Map.fromList $ prog ++ rts
 
-    labelMapping = Map.fromList $ zip (map fst prog') [0..]
+layout :: CellAddr -> MOVDBZ.Program Reg Label -> MOVDBZ.Program Int Int
+layout maxCell prog = map (layoutLabel *** layoutStmt) prog
+  where
+    labelMapping = Map.fromList $ zip (map fst prog) [0..]
 
     layoutLabel label = fromMaybe (error $ unwords ["no code generated for", show label]) $
                         Map.lookup label labelMapping
 
-    layout :: MOVDBZ.Stmt Reg Label -> MOVDBZ.Stmt Int Int
-    layout = bimap (layoutReg maxCell) layoutLabel
+    layoutStmt :: MOVDBZ.Stmt Reg Label -> MOVDBZ.Stmt Int Int
+    layoutStmt = bimap (layoutReg maxCell) layoutLabel
 
 initialMemory :: CellAddr -> [Word16]
 initialMemory maxCell = 0 : 256 : maxCell+1 : 0 : repeat 0

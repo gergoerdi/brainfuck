@@ -8,7 +8,7 @@ import Data.Word
 runBFviaMovDBz :: Word16 -> [BF.Stmt] -> IO ()
 runBFviaMovDBz maxCell prog = run (length prog') (fromIntegral $ 5 + maxCell) prog' (initialMemory maxCell)
   where
-    prog' = compileBF maxCell prog
+    prog' = layout maxCell . compileBF maxCell $ prog
 
 main :: IO ()
 main = runBFviaMovDBz 2 $
