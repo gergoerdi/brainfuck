@@ -37,7 +37,7 @@ layoutReg maxCell r = case r of
     CMaxAddr  -> 2
     Ptr       -> 3
     Tmp       -> 4
-    Cell cell -> 5 + fromIntegral maxCell
+    Cell cell -> 5 + fromIntegral cell
 
 data ScanCont = Inc Label
               | Dec Label
