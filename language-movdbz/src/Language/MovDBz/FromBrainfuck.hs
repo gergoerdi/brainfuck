@@ -52,12 +52,24 @@ data Label = Src Int
 data SyntheticLabel = Scan CellAddr ScanCont
                     | ScanFinished CellAddr ScanCont
                     | DecCell CellAddr Label
-                    | DoIncCell CellAddr CellWidth Label
-                    | UnderflowPtr Label
+                    | DoIncCell CellAddr Label
+                    | DoIncCellLoop CellAddr Label IncCellLabel
+                    | DecUnderflowPtr Label
                     | UnderflowCell CellAddr Label
-                    | DoIncPtr CellAddr Label
+                    | DoIncPtr Label
+                    | DoIncPtrLoop Label IncPtrLabel
                     | End
                     deriving (Show, Eq, Ord)
+
+data IncPtrLabel = IncPtrDecCounter
+                 | IncPtrDecPtr
+                 | IncPtrUnderflowPtr
+                 deriving (Show, Eq, Ord)
+
+data IncCellLabel = IncCellDecCounter
+                  | IncCellDecCell
+                  | IncCellUnderflowCell
+                  deriving (Show, Eq, Ord)
 
 compileStmt :: BF.Stmt -> Compile (MOVDBZ.Program Reg Label)
 compileStmt bf = do
@@ -75,8 +87,8 @@ compileStmt bf = do
         _ -> do
             next <- Src <$> (modify succ *> get)
             return $ (:[]) . (this,) $ case bf of
-                IncPtr -> jmp . S $ DoIncPtr 0 $ next
-                DecPtr -> MOVDBZ Ptr Ptr (S $ UnderflowPtr next) next
+                IncPtr -> jmp . S $ DoIncPtr next
+                DecPtr -> MOVDBZ Ptr Ptr (S $ DecUnderflowPtr next) next
                 IncData -> jmp . S $ Scan 0 $ Inc next
                 DecData -> jmp . S $ Scan 0 $ Dec next
                 Output -> jmp . S $ Scan 0 $ Print next
@@ -86,35 +98,41 @@ compileStmts :: [BF.Stmt] -> Compile (MOVDBZ.Program Reg Label)
 compileStmts = fmap concat . mapM compileStmt
 
 -- "RTS" implementation
-underflowPtr :: Label -> (Label, MOVDBZ.Stmt Reg Label)
-underflowPtr next = (S $ UnderflowPtr next, MOVDBZ CMaxAddr Ptr (S End) next)
+decUnderflowPtr :: Label -> (Label, MOVDBZ.Stmt Reg Label)
+decUnderflowPtr next = (S $ DecUnderflowPtr next, MOVDBZ CMaxAddr Ptr (S End) next)
 
 underflowCell :: CellAddr -> Label -> (Label, MOVDBZ.Stmt Reg Label)
 underflowCell cell next = (S $ UnderflowCell cell next, MOVDBZ CMaxData (Cell cell) (S End) next)
 
-incPtr :: CellAddr -> Label -> [(Label, MOVDBZ.Stmt Reg Label)]
-incPtr maxCell next = underflowPtr next :
-                       map (\i -> underflowPtr (S $ DoIncPtr (i+1) next)) [0..maxCell-1] ++
-                       map (\i -> (S $ DoIncPtr i next, step i)) [0..maxCell]
+incPtr :: Label -> [(Label, MOVDBZ.Stmt Reg Label)]
+incPtr next = [ (enter,      MOVDBZ CMaxAddr Tmp decCounter decCounter)
+              , (decCounter, MOVDBZ Tmp      Tmp next       decPtr    )
+              , (decPtr,     MOVDBZ Ptr      Ptr underflow  decCounter)
+              , (underflow,  MOVDBZ CMaxAddr Ptr decCounter decCounter)
+              ]
   where
-    step i = MOVDBZ Ptr Ptr (S $ UnderflowPtr nextStep) nextStep
-      where
-        nextStep = if i == maxCell then next else S $ DoIncPtr (i + 1) next
-
+    enter = S $ DoIncPtr next
+    decCounter = S . DoIncPtrLoop next $ IncPtrDecCounter
+    decPtr =  S . DoIncPtrLoop next $ IncPtrDecPtr
+    underflow = S . DoIncPtrLoop next $ IncPtrUnderflowPtr
 
 decCell :: CellAddr -> Label -> [(Label, MOVDBZ.Stmt Reg Label)]
-decCell cell next = [ (S $ DecCell cell next,       MOVDBZ (Cell cell) (Cell cell) (S $ UnderflowCell cell next) next)
+decCell cell next = [ (S $ DecCell cell next, MOVDBZ (Cell cell) (Cell cell) (S $ UnderflowCell cell next) next)
                     , underflowCell cell next
                     ]
 
 incCell :: CellAddr -> Label -> [(Label, MOVDBZ.Stmt Reg Label)]
-incCell cell next = underflowCell cell next :
-                    map (\i -> underflowCell cell (S $ DoIncCell cell (i+1) next)) [0..253] ++
-                    map (\i -> (S $ DoIncCell cell i next, step i)) [0..254]
+incCell cell next = [ (enter,      MOVDBZ CMaxData Tmp decCounter decCounter)
+                    , (decCounter, MOVDBZ Tmp      Tmp next       decCell   )
+                    , (decCell,    MOVDBZ r        r   underflow  decCounter)
+                    , (underflow,  MOVDBZ CMaxData r   decCounter decCounter)
+                    ]
   where
-    step i = MOVDBZ (Cell cell) (Cell cell) (S $ UnderflowCell cell nextStep) nextStep
-      where
-        nextStep = if i == 254 then next else S $ DoIncCell cell (i + 1) next
+    r = Cell cell
+    enter = S $ DoIncCell cell next
+    decCounter = S . DoIncCellLoop cell next $ IncCellDecCounter
+    decCell =  S . DoIncCellLoop cell next $ IncCellDecCell
+    underflow = S . DoIncCellLoop cell next $ IncCellUnderflowCell
 
 scan :: CellAddr -> ScanCont -> [(Label, MOVDBZ.Stmt Reg Label)]
 scan maxCell cont = map (\i -> (S $ Scan i cont, step i)) [0..maxCell] ++
@@ -129,7 +147,7 @@ scan maxCell cont = map (\i -> (S $ Scan i cont, step i)) [0..maxCell] ++
     finish i = case cont of
         Print next -> PRINT (Cell i) next
         Dec next -> jmp . S $ DecCell i next
-        Inc next -> jmp . S $ DoIncCell i 0 next
+        Inc next -> jmp . S $ DoIncCell i next
         Branch ifZero els -> MOVDBZ (Cell i) Tmp ifZero els
 
     finalize i = case cont of
@@ -148,10 +166,10 @@ rtsFor :: CellAddr -> SyntheticLabel -> [(Label, MOVDBZ.Stmt Reg Label)]
 rtsFor maxCell (Scan from cont) = if from == 0 then scan maxCell cont else error "Scan with non-zero starting value in non-RTS code"
 rtsFor maxCell ScanFinished{} = error "ScanFinished in non-RTS code"
 rtsFor maxCell (DecCell cell next) = decCell cell next
-rtsFor maxCell (DoIncCell cell from next) = if from == 0 then incCell cell next else error "DoIncCell with non-zero starting value in non-RTS code"
-rtsFor maxCell (UnderflowPtr next) = [underflowPtr next]
+rtsFor maxCell (DoIncCell cell next) = incCell cell next
+rtsFor maxCell (DecUnderflowPtr next) = [decUnderflowPtr next]
 rtsFor maxCell UnderflowCell{} = error "UnderflowCell in non-RTS code"
-rtsFor maxCell (DoIncPtr from next) = if from == 0 then incPtr maxCell next else error "DoIncPtr with non-zero starting value in non-RTS code"
+rtsFor maxCell (DoIncPtr next) = incPtr next
 rtsFor maxCell End = [(S End, HALT)]
 
 doCompile :: CellAddr -> [BF.Stmt] -> MOVDBZ.Program Reg Label
@@ -182,6 +200,14 @@ compileBF maxCell bf = map (layoutLabel *** layout) prog'
 initialMemory :: CellAddr -> [Word16]
 initialMemory maxCell = 0 : 256 : maxCell+1 : 0 : repeat 0
 
-main = compileBF 1 testProg
+main = compileBF 10 testProg
 
-testProg = [IncPtr, IncData, Output, DecPtr, Output]
+testProg = [ IncData, IncData
+           , While [ IncPtr
+                   , IncData, IncData, IncData
+                   , DecPtr
+                   , DecData
+                   ]
+           , IncPtr
+           , While [ Output, DecData ]
+           ]
