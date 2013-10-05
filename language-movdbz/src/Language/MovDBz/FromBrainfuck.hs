@@ -1,5 +1,5 @@
 {-# LANGUAGE TupleSections #-}
-module Language.MovDBz.FromBrainfuck where
+module Language.MovDBz.FromBrainfuck (compileBF, initialMemory) where
 
 import Language.Brainfuck.Syntax as BF
 import Language.MovDBz.Syntax as MOVDBZ
@@ -199,15 +199,3 @@ compileBF maxCell bf = map (layoutLabel *** layout) prog'
 
 initialMemory :: CellAddr -> [Word16]
 initialMemory maxCell = 0 : 256 : maxCell+1 : 0 : repeat 0
-
-main = compileBF 10 testProg
-
-testProg = [ IncData, IncData
-           , While [ IncPtr
-                   , IncData, IncData, IncData
-                   , DecPtr
-                   , DecData
-                   ]
-           , IncPtr
-           , While [ Output, DecData ]
-           ]

@@ -1,4 +1,4 @@
-module Language.MovDBz.Interpreter where
+module Language.MovDBz.Interpreter (run) where
 
 import Language.MovDBz.Syntax
 import Data.Array as A
